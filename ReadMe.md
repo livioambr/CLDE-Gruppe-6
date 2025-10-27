@@ -21,6 +21,6 @@ Das Projekt wurde im Rahmen des Faches *Cloud Development* an der OST entwickelt
 - Daten: DynamoDB (einfach & serverlos) – optional RDS Postgres als Bonus
 - Secrets: AWS Systems Manager Parameter Store
 - Logs & Metrics: CloudWatch Logs, ALB-Zugriffslogs nach S3
-- Infra structure as a Service: Terraform (empfohlen) – alternativ CDK
+- IaC: Terraform
 - CI/CD: GitHub Actions → Build + Push nach ECR → Terraform Apply
 ---
