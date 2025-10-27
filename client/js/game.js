@@ -182,3 +182,66 @@ resetBtn.addEventListener('click', initGame);
 
 // Spiel starten
 initGame();
+
+// --- Chat Setup ---
+const chatMessages = document.getElementById("chat-messages");
+const chatForm = document.getElementById("chat-form");
+const chatInput = document.getElementById("chat-input");
+
+// --- LocalStorage laden ---
+let chatHistory = JSON.parse(localStorage.getItem("chatHistory")) || [];
+
+// Chatverlauf anzeigen
+function renderChatHistory() {
+    chatMessages.innerHTML = ""; // vorher leeren
+    chatHistory.forEach(msg => addMessage(msg.user, msg.text, false));
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Nachrichten hinzufügen
+function addMessage(user, text, save = true) {
+    const div = document.createElement("div");
+    div.classList.add("message");
+    div.innerHTML = `<span class="user">${user}:</span> ${text}`;
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    // Optional speichern
+    if (save) {
+        chatHistory.push({ user, text });
+        localStorage.setItem("chatHistory", JSON.stringify(chatHistory));
+    }
+}
+
+// --- WebSocket einrichten ---
+const socket = new WebSocket("ws://localhost:8080"); // <-- Server anpassen
+
+socket.addEventListener("open", () => {
+    console.log("WebSocket verbunden!");
+});
+
+// Nachrichten vom Server empfangen
+socket.addEventListener("message", (event) => {
+    const data = JSON.parse(event.data);
+    addMessage(data.user, data.text);
+});
+
+// Nachricht senden
+chatForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const text = chatInput.value.trim();
+    if (!text) return;
+
+    const message = { user: "Spieler", text };
+
+    // 1. Sofort anzeigen
+    addMessage(message.user, message.text);
+
+    // 2. An Server senden
+    socket.send(JSON.stringify(message));
+
+    chatInput.value = "";
+});
+
+// Verlauf beim Laden rendern
+renderChatHistory();
