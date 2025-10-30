@@ -1,0 +1,310 @@
+/* ============================================
+   MOBILE RESPONSIVE STYLES
+   ============================================ */
+
+/* Tablet (unter 1200px) */
+@media (max-width: 1200px) {
+  .game-layout {
+    grid-template-columns: 1fr 1.5fr 1fr;
+    gap: 15px;
+    padding: 15px;
+  }
+
+  .word-display {
+    font-size: 2.5rem;
+    letter-spacing: 15px;
+  }
+
+  .letters-grid {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+  }
+
+  .letter-btn {
+    padding: 12px;
+    font-size: 1.1rem;
+  }
+}
+
+/* Tablet (unter 992px) - 2-Spalten Layout */
+@media (max-width: 992px) {
+  .game-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    height: auto;
+    min-height: calc(100vh - 80px);
+  }
+
+  /* Reihenfolge: Spiel -> Hangman -> Chat */
+  .game-column {
+    order: 1;
+  }
+
+  .hangman-column {
+    order: 2;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    padding: 15px;
+  }
+
+  .hangman-column h2 {
+    grid-column: 1 / -1;
+  }
+
+  .canvas-container {
+    max-width: 100%;
+  }
+
+  .attempts-display {
+    max-width: 100%;
+  }
+
+  .chat-column {
+    order: 3;
+    max-height: 400px;
+  }
+
+  .word-display {
+    font-size: 2rem;
+    letter-spacing: 10px;
+    margin: 30px 0;
+  }
+}
+
+/* Mobile (unter 768px) */
+@media (max-width: 768px) {
+  .game-header {
+    padding: 10px 15px;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .game-header h1 {
+    font-size: 1.2rem;
+  }
+
+  .lobby-info {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .hangman-column {
+    grid-template-columns: 1fr;
+  }
+
+  .canvas-container {
+    max-width: 300px;
+    margin: 0 auto 20px;
+  }
+
+  #hangmanCanvas {
+    width: 100%;
+    height: 300px;
+  }
+
+  .word-display {
+    font-size: 1.8rem;
+    letter-spacing: 8px;
+    margin: 20px 0;
+  }
+
+  .letters-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+  }
+
+  .letter-btn {
+    padding: 10px;
+    font-size: 1rem;
+  }
+
+  .game-controls {
+    flex-direction: column;
+  }
+
+  .btn {
+    width: 100%;
+  }
+
+  .chat-column {
+    max-height: 350px;
+  }
+
+  .player-list {
+    padding: 10px;
+  }
+
+  .chat-messages {
+    padding: 10px;
+  }
+
+  .chat-input-container {
+    padding: 10px;
+  }
+}
+
+/* Small Mobile (unter 480px) */
+@media (max-width: 480px) {
+  .game-layout {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .game-header h1 {
+    font-size: 1rem;
+  }
+
+  .game-header .logo {
+    width: 30px;
+    height: 30px;
+    font-size: 1rem;
+  }
+
+  .lobby-code {
+    padding: 6px 12px;
+    font-size: 0.9rem;
+  }
+
+  .menu-btn {
+    padding: 8px 15px;
+    font-size: 0.9rem;
+  }
+
+  .hangman-column,
+  .game-column,
+  .chat-column {
+    padding: 15px;
+    border-radius: 12px;
+  }
+
+  .canvas-container {
+    max-width: 250px;
+  }
+
+  #hangmanCanvas {
+    width: 100%;
+    height: 250px;
+  }
+
+  .word-display {
+    font-size: 1.5rem;
+    letter-spacing: 5px;
+    margin: 15px 0;
+  }
+
+  .letters-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+  }
+
+  .letter-btn {
+    padding: 8px;
+    font-size: 0.9rem;
+  }
+
+  .attempts-number {
+    font-size: 2.5rem;
+  }
+
+  .chat-column {
+    max-height: 300px;
+  }
+
+  .chat-header h2 {
+    font-size: 1.1rem;
+  }
+
+  .chat-message {
+    padding: 8px 10px;
+    font-size: 0.9rem;
+  }
+
+  .message-user {
+    font-size: 0.9rem;
+  }
+
+  .message-text {
+    font-size: 0.85rem;
+  }
+
+  .chat-input {
+    padding: 10px;
+    font-size: 0.9rem;
+  }
+
+  .chat-send-btn {
+    padding: 10px 15px;
+    font-size: 0.9rem;
+  }
+}
+
+/* Landscape Mode auf Mobile */
+@media (max-height: 600px) and (orientation: landscape) {
+  .game-layout {
+    grid-template-columns: 1fr 1.5fr 1fr;
+    grid-template-rows: 1fr;
+    height: auto;
+  }
+
+  .hangman-column {
+    order: 1;
+  }
+
+  .game-column {
+    order: 2;
+  }
+
+  .chat-column {
+    order: 3;
+    max-height: none;
+  }
+
+  .canvas-container {
+    max-width: 200px;
+  }
+
+  #hangmanCanvas {
+    height: 200px;
+  }
+
+  .word-display {
+    font-size: 1.5rem;
+    margin: 15px 0;
+  }
+}
+
+/* Dark Mode Support (optional) */
+@media (prefers-color-scheme: dark) {
+  body {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  }
+}
+
+/* Accessibility: Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .chat-column,
+  .game-controls,
+  .menu-btn {
+    display: none;
+  }
+
+  body {
+    background: white;
+  }
+
+  .game-layout {
+    grid-template-columns: 1fr 1fr;
+  }
+}
