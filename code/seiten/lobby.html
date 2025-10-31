@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hangman Lobby</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <div class="lobby-container">
+    <h1>🎮 Hangman Lobby</h1>
+    <p>Erstelle eine neue Session oder tritt einer bestehenden bei.</p>
+
+    <div class="lobby-box">
+      <input id="playerName" placeholder="Dein Name" maxlength="20">
+
+      <div class="actions">
+        <button id="createSessionBtn" class="btn primary">Session erstellen</button>
+        <input id="sessionCode" placeholder="Session-Code" maxlength="6">
+        <button id="joinSessionBtn" class="btn secondary">Beitreten</button>
+      </div>
+
+      <p id="lobbyMessage" class="message"></p>
+    </div>
+  </div>
+
+  <script src="../js/lobby.js" defer></script>
+</body>
+</html>
