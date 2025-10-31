@@ -236,6 +236,7 @@ Füge folgende Konfiguration ein (ersetze die Werte):
 ```env
 # Server Configuration
 PORT=3000
+HOST=0.0.0.0
 NODE_ENV=production
 
 # MySQL Database Configuration (AWS RDS)
@@ -294,7 +295,26 @@ Du solltest sehen:
 
 ### Schritt 4.6: Testen im Browser
 
-Öffne: `http://your-ec2-public-ip:3000`
+**⚠️ WICHTIG:** Nutze die **öffentliche EC2 IP-Adresse**, nicht `localhost`!
+
+Von deinem lokalen Computer (außerhalb AWS):
+```
+http://your-ec2-public-ip:3000
+```
+
+Beispiel: `http://54.123.45.67:3000`
+
+**Warum nicht localhost?**
+- `localhost:3000` funktioniert nur **innerhalb** der EC2-Instanz (via SSH)
+- Externe Clients müssen die **EC2 Public IPv4 Address** verwenden
+- Diese findest du in der AWS Console unter EC2 → Instances → Deine Instanz
+
+**Checkliste wenn Verbindung nicht funktioniert:**
+- [ ] Security Group erlaubt Port 3000 von 0.0.0.0/0
+- [ ] Server läuft (`pm2 status` oder `ps aux | grep node`)
+- [ ] Du verwendest die öffentliche IP, nicht localhost
+- [ ] PORT 3000 ist in der .env Datei korrekt gesetzt
+- [ ] HOST=0.0.0.0 ist in der .env Datei gesetzt
 
 Wenn alles funktioniert, stoppe den Server: `Ctrl + C`
 
@@ -494,12 +514,48 @@ crontab -e
 
 ### Problem: Kann nicht auf Port 3000 zugreifen
 
+**Symptome:**
+- Browser zeigt "Die Website ist nicht erreichbar" oder "Connection refused"
+- Funktioniert nur mit `ssh -L 3000:localhost:3000` Port Forwarding
+
+**Häufigste Ursache:** Server bindet nur an localhost statt 0.0.0.0
+
 **Lösung:**
-1. Prüfe Security Group:
+1. **WICHTIG:** Stelle sicher dass `HOST=0.0.0.0` in deiner `.env` Datei steht:
+   ```bash
+   nano .env
+   # Füge hinzu oder bearbeite:
+   HOST=0.0.0.0
+   ```
+   
+2. Prüfe ob Server richtig bindet:
+   ```bash
+   # Server neu starten
+   pm2 restart hangman-server
+   
+   # Prüfe Logs
+   pm2 logs hangman-server --lines 20
+   
+   # Du solltest sehen: "Listening on: 0.0.0.0:3000"
+   ```
+
+3. Prüfe Security Group:
    - EC2 → Security Groups → hangman-server-sg
    - Inbound Rules: Port 3000 offen für 0.0.0.0/0
-2. Prüfe ob Server läuft: `pm2 status`
-3. Prüfe Firewall: `sudo ufw status` (sollte inaktiv sein)
+
+4. Prüfe ob Server läuft: 
+   ```bash
+   pm2 status
+   netstat -tlnp | grep 3000
+   ```
+
+5. Verwende die **öffentliche EC2 IP**, nicht `localhost`:
+   ```
+   ✅ Richtig: http://54.123.45.67:3000
+   ❌ Falsch:  http://localhost:3000
+   ```
+
+6. Prüfe Firewall: `sudo ufw status` (sollte inaktiv sein)
 
 ### Problem: Datenbank-Verbindungsfehler
 
