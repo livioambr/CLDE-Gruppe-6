@@ -2,7 +2,7 @@
 
 ## 🚨 "Server taking too long to respond" Error
 
-### Fix #1: Check Security Group (90% of issues)
+### Fix #1: Check Security Group (Most Common Issue)
 
 1. AWS Console → EC2 → Security Groups
 2. Find `hangman-server-sg`

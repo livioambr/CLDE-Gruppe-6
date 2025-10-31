@@ -22,7 +22,7 @@ If you're getting a timeout error when trying to access your EC2 instance at `ht
 
 ## Step 2: Check Security Group Configuration
 
-This is the **#1 most common issue** for connection timeouts!
+This is **by far the most common issue** for connection timeouts in our experience!
 
 ### How to Check:
 
@@ -262,11 +262,11 @@ telnet 23.22.44.190 3000
 
 ### Issue: "Connection timeout"
 
-**Causes:**
-1. Security Group issue (most common)
-2. Wrong IP address
-3. Server binding to localhost instead of 0.0.0.0
-4. EC2 firewall blocking
+**Possible Causes:**
+- Security Group issue (most common)
+- Wrong IP address
+- Server binding to localhost instead of 0.0.0.0
+- EC2 firewall blocking
 
 **Fix:** Follow Steps 2, 3, and 5
 
