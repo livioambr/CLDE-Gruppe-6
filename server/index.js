@@ -87,15 +87,15 @@ async function startServer() {
     httpServer.listen(PORT, HOST, () => {
       console.log('\n✅ Server erfolgreich gestartet!');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log(`🌐 HTTP Server:     http://localhost:${PORT}`);
-      console.log(`🔌 Socket.io:       ws://localhost:${PORT}`);
-      console.log(`💾 Datenbank:       ${process.env.DB_HOST || 'localhost'}`);
-      console.log(`📁 Frontend:        ${path.join(__dirname, '../client')}`);
-      console.log(`🔗 Listening on:    ${HOST}:${PORT}`);
+      console.log(`🌐 Server läuft auf: ${HOST}:${PORT}`);
+      console.log(`📍 Lokal erreichbar: http://localhost:${PORT}`);
+      console.log(`🔌 Socket.io:        ws://localhost:${PORT}`);
+      console.log(`💾 Datenbank:        ${process.env.DB_HOST || 'localhost'}`);
+      console.log(`📁 Frontend:         ${path.join(__dirname, '../client')}`);
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
       console.log('💡 Bereit für Verbindungen!\n');
       if (process.env.NODE_ENV === 'production') {
-        console.log('⚠️  Production Mode: Use EC2 Public IP or Domain to access from external clients\n');
+        console.log('⚠️  Production Mode: Nutze EC2 Public IP oder Domain für externe Verbindungen\n');
       }
     });
   } catch (error) {
