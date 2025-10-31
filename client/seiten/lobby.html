@@ -5,25 +5,276 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hangman Lobby</title>
   <link rel="stylesheet" href="../css/styles.css">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      margin: 0;
+    }
+
+    .lobby-container {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 2rem;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #666;
+      margin-bottom: 30px;
+    }
+
+    .input-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #555;
+      font-weight: 600;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px;
+      font-size: 1rem;
+      border: 2px solid #ddd;
+      border-radius: 10px;
+      transition: all 0.3s;
+      box-sizing: border-box;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #8c195f;
+      box-shadow: 0 0 0 3px rgba(140, 25, 95, 0.1);
+    }
+
+    .divider {
+      text-align: center;
+      margin: 30px 0;
+      position: relative;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      width: 40%;
+      height: 1px;
+      background: #ddd;
+    }
+
+    .divider::before {
+      left: 0;
+    }
+
+    .divider::after {
+      right: 0;
+    }
+
+    .divider span {
+      background: white;
+      padding: 0 15px;
+      color: #999;
+      font-weight: 600;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 15px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-bottom: 10px;
+    }
+
+    .btn-primary {
+      background: #8c195f;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #6b1449;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(140, 25, 95, 0.3);
+    }
+
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #8c195f;
+      border: 2px solid #8c195f;
+    }
+
+    .btn-secondary:hover {
+      background: #e0e0e0;
+      transform: translateY(-2px);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .message {
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 15px;
+      text-align: center;
+      font-weight: 600;
+      display: none;
+    }
+
+    .message.error {
+      background: #ffebee;
+      color: #c62828;
+      display: block;
+    }
+
+    .message.success {
+      background: #e8f5e9;
+      color: #2e7d32;
+      display: block;
+    }
+
+    .message.info {
+      background: #e3f2fd;
+      color: #1565c0;
+      display: block;
+    }
+
+    .back-btn {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .back-btn a {
+      color: #8c195f;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .back-btn a:hover {
+      text-decoration: underline;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      margin: 20px 0;
+    }
+
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #8c195f;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 600px) {
+      .lobby-container {
+        padding: 30px 20px;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+      }
+
+      .btn {
+        padding: 12px;
+        font-size: 1rem;
+      }
+    }
+  </style>
 </head>
 <body>
   <div class="lobby-container">
     <h1>🎮 Hangman Lobby</h1>
-    <p>Erstelle eine neue Session oder tritt einer bestehenden bei.</p>
+    <p class="subtitle">Erstelle eine Session oder tritt einer bei</p>
 
-    <div class="lobby-box">
-      <input id="playerName" placeholder="Dein Name" maxlength="20">
+    <!-- Spielername -->
+    <div class="input-group">
+      <label for="playerName">Dein Spielername</label>
+      <input
+        type="text"
+        id="playerName"
+        placeholder="z.B. Spieler123"
+        maxlength="20"
+        required
+        autocomplete="off"
+      />
+    </div>
 
-      <div class="actions">
-        <button id="createSessionBtn" class="btn primary">Session erstellen</button>
-        <input id="sessionCode" placeholder="Session-Code" maxlength="6">
-        <button id="joinSessionBtn" class="btn secondary">Beitreten</button>
-      </div>
+    <!-- Session erstellen -->
+    <button class="btn btn-primary" id="createSessionBtn">
+      ➕ Neue Session erstellen
+    </button>
 
-      <p id="lobbyMessage" class="message"></p>
+    <div class="divider">
+      <span>ODER</span>
+    </div>
+
+    <!-- Session beitreten -->
+    <div class="input-group">
+      <label for="sessionCode">Session-Code</label>
+      <input
+        type="text"
+        id="sessionCode"
+        placeholder="z.B. ABC123"
+        maxlength="6"
+        style="text-transform: uppercase;"
+        autocomplete="off"
+      />
+    </div>
+
+    <button class="btn btn-secondary" id="joinSessionBtn">
+      ▶️ Session beitreten
+    </button>
+
+    <!-- Loading Indicator -->
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <p>Verbinde...</p>
+    </div>
+
+    <!-- Message -->
+    <div class="message" id="lobbyMessage"></div>
+
+    <!-- Zurück -->
+    <div class="back-btn">
+      <a href="../index.html">← Zurück zur Startseite</a>
     </div>
   </div>
 
-  <script src="../js/lobby.js" defer></script>
+  <script type="module" src="../js/lobby.js"></script>
 </body>
 </html>

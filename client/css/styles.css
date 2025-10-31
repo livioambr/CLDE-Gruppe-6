@@ -111,3 +111,100 @@ input {
   font-weight: bold;
   min-height: 30px;
 }
+
+/* --- Chat Container --- */
+#chat-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 300px;
+    max-height: 70vh; /* max. Höhe relativ zum Viewport */
+    background-color: #1e1e1e;
+    color: #fff;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    z-index: 1000;
+    overflow: hidden;
+}
+
+/* Kleinere Bildschirme: Chat rutscht unter das Spiel und wird breiter */
+@media (max-width: 992px) {
+    #chat-container {
+        position: relative;
+        top: auto;
+        right: auto;
+        width: 90%;
+        margin: 20px auto 0 auto;
+    }
+}
+
+/* Chat Header */
+#chat-header {
+    padding: 15px;
+    background-color: #8c195f;
+    font-weight: bold;
+    text-align: center;
+    font-size: 1.1rem;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+/* Chat Messages */
+#chat-messages {
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: #2a2a2a;
+}
+
+/* Einzelne Nachricht */
+#chat-messages .message {
+    background: #3a3a3a;
+    padding: 8px 12px;
+    border-radius: 10px;
+    word-wrap: break-word;
+}
+
+#chat-messages .message .user {
+    font-weight: bold;
+    color: #ffb86c;
+    margin-right: 5px;
+}
+
+/* Chat Formular */
+#chat-form {
+    display: flex;
+    border-top: 1px solid #444;
+    background-color: #2a2a2a;
+}
+
+#chat-input {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 0;
+    outline: none;
+    background-color: #1e1e1e;
+    color: #fff;
+    font-size: 14px;
+}
+
+#chat-form button {
+    padding: 0 20px;
+    background-color: #8c195f;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+#chat-form button:hover {
+    background-color: #a22a7c;
+}
