@@ -263,15 +263,23 @@ Tritt einer Lobby bei.
 Detaillierte Schritt-für-Schritt Anleitung findest du in:
 **[AWS_DEPLOYMENT.md](./AWS_DEPLOYMENT.md)**
 
+### 🚨 Connection Problems?
+
+- **Quick Fix:** [AWS_QUICK_FIX.md](./AWS_QUICK_FIX.md)
+- **Detailed Troubleshooting:** [AWS_TROUBLESHOOTING.md](./AWS_TROUBLESHOOTING.md)
+
+Most common issue: **Security Group doesn't allow port 3000!**
+
 Kurz-Übersicht:
 
 1. **RDS MySQL erstellen** (siehe Guide)
 2. **EC2 Instanz erstellen** mit Node.js 22
 3. **Code deployen** via Git oder SCP
-4. **Umgebungsvariablen** in `.env` setzen
+4. **Umgebungsvariablen** in `.env` setzen (HOST=0.0.0.0 wichtig!)
 5. **PM2** für Process Management
-6. **Nginx** als Reverse Proxy (optional)
-7. **SSL/TLS** mit Let's Encrypt (optional)
+6. **Security Group** konfigurieren (Port 3000 öffnen!)
+7. **Nginx** als Reverse Proxy (optional)
+8. **SSL/TLS** mit Let's Encrypt (optional)
 
 ## 🛠️ Development
 

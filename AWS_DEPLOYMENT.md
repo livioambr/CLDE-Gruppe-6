@@ -2,6 +2,19 @@
 
 Schritt-für-Schritt Anleitung zum Deployment des Hangman Multiplayer-Spiels auf AWS.
 
+## 🚨 Connection Issues?
+
+**If you can't connect to your deployed app, read this first:**
+👉 **[AWS_TROUBLESHOOTING.md](./AWS_TROUBLESHOOTING.md)** 👈
+
+Most common issues:
+- ❌ Security Group doesn't allow port 3000
+- ❌ Server not running or crashed
+- ❌ Using `https://` instead of `http://`
+- ❌ Server binding to localhost instead of 0.0.0.0
+
+---
+
 ## Übersicht
 
 Diese Anleitung zeigt, wie du die Hangman-Anwendung auf AWS mit folgenden Services deployst:
@@ -119,9 +132,12 @@ Internet
 2. **Firewall (Security groups):** Create new `hangman-server-sg`
 3. **Inbound Security Group Rules:**
    - **SSH:** Port 22 (Source: My IP)
-   - **HTTP:** Port 80 (Source: 0.0.0.0/0)
-   - **HTTPS:** Port 443 (Source: 0.0.0.0/0)
-   - **Custom TCP:** Port 3000 (Source: 0.0.0.0/0)
+   - **HTTP:** Port 80 (Source: 0.0.0.0/0) - optional, for Nginx
+   - **HTTPS:** Port 443 (Source: 0.0.0.0/0) - optional, for Nginx with SSL
+   - **Custom TCP:** Port 3000 (Source: 0.0.0.0/0) - **⚠️ CRITICAL - Required for Node.js app**
+   - **Custom TCP:** Port 3000 (Source: ::/0) - **⚠️ CRITICAL - Required for IPv6**
+
+⚠️ **IMPORTANT:** Port 3000 must be open to 0.0.0.0/0 (and ::/0 for IPv6) or you will get connection timeouts!
 
 ### Schritt 2.3: Storage
 
@@ -304,17 +320,25 @@ http://your-ec2-public-ip:3000
 
 Beispiel: `http://54.123.45.67:3000`
 
+**⚠️ CRITICAL: Use HTTP not HTTPS**
+- ✅ **Correct:** `http://54.123.45.67:3000`
+- ❌ **Wrong:** `https://54.123.45.67:3000` (will timeout - no SSL configured)
+- ❌ **Wrong:** `http://localhost:3000` (only works on EC2 itself)
+
 **Warum nicht localhost?**
 - `localhost:3000` funktioniert nur **innerhalb** der EC2-Instanz (via SSH)
 - Externe Clients müssen die **EC2 Public IPv4 Address** verwenden
 - Diese findest du in der AWS Console unter EC2 → Instances → Deine Instanz
 
 **Checkliste wenn Verbindung nicht funktioniert:**
-- [ ] Security Group erlaubt Port 3000 von 0.0.0.0/0
+- [ ] Security Group erlaubt Port 3000 von 0.0.0.0/0 **UND** ::/0
+- [ ] Du verwendest **HTTP** nicht HTTPS
 - [ ] Server läuft (`pm2 status` oder `ps aux | grep node`)
 - [ ] Du verwendest die öffentliche IP, nicht localhost
 - [ ] PORT 3000 ist in der .env Datei korrekt gesetzt
 - [ ] HOST=0.0.0.0 ist in der .env Datei gesetzt
+
+**If getting timeout errors, see:** [AWS_TROUBLESHOOTING.md](./AWS_TROUBLESHOOTING.md)
 
 Wenn alles funktioniert, stoppe den Server: `Ctrl + C`
 
@@ -512,64 +536,52 @@ crontab -e
 
 ## Troubleshooting
 
-### Problem: Kann nicht auf Port 3000 zugreifen
+### 🚨 Can't connect to your app? Getting timeout errors?
 
-**Symptome:**
-- Browser zeigt "Die Website ist nicht erreichbar" oder "Connection refused"
-- Funktioniert nur mit `ssh -L 3000:localhost:3000` Port Forwarding
+**See the comprehensive troubleshooting guide:**
+👉 **[AWS_TROUBLESHOOTING.md](./AWS_TROUBLESHOOTING.md)** 👈
 
-**Häufigste Ursache:** Server bindet nur an localhost statt 0.0.0.0
+The guide includes:
+- ✅ Step-by-step diagnostic checklist
+- ✅ Security Group configuration verification
+- ✅ Server status checks
+- ✅ Common issues and fixes
+- ✅ Database connection troubleshooting
 
-**Lösung:**
-1. **WICHTIG:** Stelle sicher dass `HOST=0.0.0.0` in deiner `.env` Datei steht:
-   ```bash
-   nano .env
-   # Füge hinzu oder bearbeite:
-   HOST=0.0.0.0
-   ```
-   
-2. Prüfe ob Server richtig bindet:
-   ```bash
-   # Server neu starten
-   pm2 restart hangman-server
-   
-   # Prüfe Logs
-   pm2 logs hangman-server --lines 20
-   
-   # Du solltest sehen: "Listening on: 0.0.0.0:3000"
-   ```
+### Quick Checklist
 
-3. Prüfe Security Group:
+If you can't access `http://YOUR-EC2-IP:3000`:
+
+1. **Security Group Check** (most common issue):
    - EC2 → Security Groups → hangman-server-sg
-   - Inbound Rules: Port 3000 offen für 0.0.0.0/0
+   - Inbound Rules: Port 3000 must be open to 0.0.0.0/0
+   - Also add ::/0 for IPv6 support
 
-4. Prüfe ob Server läuft: 
+2. **Server Status Check**:
    ```bash
+   # SSH into EC2
    pm2 status
-   netstat -tlnp | grep 3000
+   # Should show: hangman-server status = "online"
    ```
 
-5. Verwende die **öffentliche EC2 IP**, nicht `localhost`:
+3. **Binding Check**:
+   ```bash
+   sudo netstat -tlnp | grep 3000
+   # Should show: 0.0.0.0:3000 (NOT 127.0.0.1:3000)
    ```
-   ✅ Richtig: http://54.123.45.67:3000
-   ❌ Falsch:  http://localhost:3000
+
+4. **Environment Check**:
+   ```bash
+   grep HOST .env
+   # Should show: HOST=0.0.0.0
    ```
 
-6. Prüfe Firewall: `sudo ufw status` (sollte inaktiv sein)
+5. **Use correct URL**:
+   - ✅ Correct: `http://54.123.45.67:3000` (use your EC2 public IP)
+   - ❌ Wrong: `https://...` (no SSL configured)
+   - ❌ Wrong: `http://localhost:3000` (only works on EC2 itself)
 
-### Problem: Datenbank-Verbindungsfehler
-
-**Lösung:**
-1. Prüfe RDS Security Group (Port 3306 offen)
-2. Teste Verbindung: `mysql -h ENDPOINT -u admin -p`
-3. Prüfe .env Datei (Host, User, Password korrekt?)
-
-### Problem: WebSocket-Verbindung schlägt fehl
-
-**Lösung:**
-1. Nginx Konfiguration prüfen (WebSocket-Abschnitt)
-2. CLIENT_URL in .env auf richtige Domain setzen
-3. CORS-Einstellungen prüfen
+For detailed troubleshooting, see [AWS_TROUBLESHOOTING.md](./AWS_TROUBLESHOOTING.md)
 
 ---
 
