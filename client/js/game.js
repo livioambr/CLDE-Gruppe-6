@@ -1,517 +1,296 @@
-// Hangman Multiplayer Game - Client-Side Logic
-import {
-  initSocket,
-  on,
-  joinLobbySocket,
-  startGameSocket,
-  guessLetterSocket,
-  sendChatMessage,
-  resetGameSocket
-} from './socket-client.js';
+import { connectGameWS, apiGetGame, apiGuess } from "./socket-client.js";
 
-// ============================================
-// GLOBALE VARIABLEN
-// ============================================
-let gameState = {
-  lobbyId: null,
-  lobbyCode: null,
-  playerId: null,
-  playerName: null,
-  isHost: false,
-  players: [],
-  currentTurnIndex: 0,
-  wordProgress: '',
-  guessedLetters: [],
-  incorrectGuesses: [],
-  attemptsLeft: 6,
-  maxAttempts: 6,
-  status: 'waiting',
-  word: null
-};
+const $ = (s) => document.querySelector(s);
 
-// DOM Elemente
-const canvas = document.getElementById('hangmanCanvas');
-const ctx = canvas.getContext('2d');
-const wordDisplay = document.getElementById('wordDisplay');
-const lettersGrid = document.getElementById('lettersGrid');
-const attemptsLeftDisplay = document.getElementById('attemptsLeft');
-const currentPlayerNameDisplay = document.getElementById('currentPlayerName');
-const lobbyCodeDisplay = document.getElementById('lobbyCodeDisplay');
-const startGameBtn = document.getElementById('startGameBtn');
-const newGameBtn = document.getElementById('newGameBtn');
-const gameMessage = document.getElementById('gameMessage');
-const menuBtn = document.getElementById('menuBtn');
-const playersListContainer = document.getElementById('playersList');
-const chatMessages = document.getElementById('chatMessages');
-const chatForm = document.getElementById('chatForm');
-const chatInput = document.getElementById('chatInput');
+// vorhandene Elemente
+const wordDisplay      = $("#wordDisplay");
+const attemptsLeft     = $("#attemptsLeft");
+const lettersGrid      = $("#lettersGrid");
+const gameMessage      = $("#gameMessage");
+const lobbyCodeDisp    = $("#lobbyCodeDisplay");
+const currentPlayerEl  = $("#currentPlayerName");
 
-// ============================================
-// INITIALISIERUNG
-// ============================================
-async function init() {
-  console.log('🎮 Initialisiere Hangman Multiplayer...');
+// Chat
+const chatForm     = $("#chatForm");
+const chatInput    = $("#chatInput");
+const chatMessages = $("#chatMessages");
 
-  // Lade Session-Daten
-  gameState.lobbyId = sessionStorage.getItem('lobbyId');
-  gameState.playerId = sessionStorage.getItem('playerId');
-  gameState.playerName = sessionStorage.getItem('playerName');
-  gameState.lobbyCode = sessionStorage.getItem('lobbyCode');
-  gameState.isHost = sessionStorage.getItem('isHost') === 'true';
+// Spieler-Liste (Container <div id="playersList">)
+const playersList  = $("#playersList");
 
-  // Prüfe Session-Daten
-  if (!gameState.lobbyId || !gameState.playerId || !gameState.playerName) {
-    alert('Keine gültige Session gefunden. Bitte erstelle eine neue Session.');
-    window.location.href = 'lobby.html';
-    return;
-  }
+// Query-Parameter
+const params = new URLSearchParams(location.search);
+const gameId = params.get("gameId");
+const playerName = params.get("name") || "Player";
 
-  // Zeige Lobby-Code
-  lobbyCodeDisplay.textContent = `CODE: ${gameState.lobbyCode}`;
+let ws;
+let currentState = null;
 
-  // Initialisiere Socket.io
-  console.log('🔌 Verbinde mit Server...');
-  initSocket();
-
-  // Setup Socket-Event-Listener
-  setupSocketListeners();
-
-  // Tritt Lobby bei
-  try {
-    const response = await joinLobbySocket(
-      gameState.lobbyId,
-      gameState.playerId,
-      gameState.playerName
-    );
-
-    console.log('✅ Lobby beigetreten:', response);
-
-    // Aktualisiere Game State
-    updateGameState(response.lobby);
-
-    // Lade Chat-Historie
-    if (response.chatHistory && response.chatHistory.length > 0) {
-      response.chatHistory.forEach(msg => {
-        addChatMessage(msg.player_name, msg.message, msg.message_type);
-      });
-    }
-
-    // Zeige Start-Button nur für Host
-    if (gameState.isHost && gameState.status === 'waiting') {
-      startGameBtn.style.display = 'block';
-    }
-
-  } catch (error) {
-    console.error('❌ Fehler beim Beitreten:', error);
-    alert('Fehler beim Beitreten der Lobby: ' + error);
-    window.location.href = 'lobby.html';
-  }
-
-  // Erstelle Buchstaben-Tastatur
-  createLetterButtons();
-
-  // Event Listener
-  startGameBtn.addEventListener('click', handleStartGame);
-  newGameBtn.addEventListener('click', handleNewGame);
-  menuBtn.addEventListener('click', handleMenu);
-  chatForm.addEventListener('submit', handleChatSubmit);
-}
-
-// ============================================
-// SOCKET EVENT LISTENER
-// ============================================
-function setupSocketListeners() {
-  // Spieler joined
-  on('player:joined', (data) => {
-    console.log('👤 Neuer Spieler:', data.playerName);
-    addSystemMessage(`${data.playerName} ist beigetreten`);
-    // Game State wird automatisch über game:updated aktualisiert
-  });
-
-  // Spieler left
-  on('player:left', (data) => {
-    console.log('👋 Spieler verlassen:', data.playerName);
-    addSystemMessage(`${data.playerName} hat die Lobby verlassen`);
-  });
-
-  // Spiel gestartet
-  on('game:started', (data) => {
-    console.log('🎮 Spiel gestartet!', data);
-    updateGameState(data);
-    startGameBtn.style.display = 'none';
-    gameMessage.innerHTML = '';
-  });
-
-  // Spiel aktualisiert
-  on('game:updated', (data) => {
-    console.log('🔄 Spiel aktualisiert:', data);
-    updateGameState(data);
-
-    // Zeige Feedback für letzten Zug
-    if (data.lastGuess) {
-      const letter = data.lastGuess.letter;
-      const isCorrect = data.lastGuess.isCorrect;
-
-      if (isCorrect) {
-        addSystemMessage(`Buchstabe "${letter}" ist richtig! ✅`);
-      } else {
-        addSystemMessage(`Buchstabe "${letter}" ist falsch! ❌`);
-      }
-    }
-
-    // Prüfe auf Gewinn/Verlust
-    if (data.status === 'finished') {
-      handleGameEnd(data);
-    }
-  });
-
-  // Spiel zurückgesetzt
-  on('game:reset', (data) => {
-    console.log('🔄 Spiel zurückgesetzt:', data);
-    updateGameState(data);
-    newGameBtn.style.display = 'none';
-    if (gameState.isHost) {
-      startGameBtn.style.display = 'block';
-    }
-    gameMessage.innerHTML = '';
-    clearCanvas();
-  });
-
-  // Chat-Nachricht empfangen
-  on('chat:new-message', (data) => {
-    addChatMessage(data.playerName, data.message, data.messageType);
-  });
-}
-
-// ============================================
-// GAME STATE MANAGEMENT
-// ============================================
-function updateGameState(data) {
-  gameState.status = data.status;
-  gameState.players = data.players || [];
-  gameState.currentTurnIndex = data.currentTurnIndex;
-  gameState.wordProgress = data.wordProgress || '';
-  gameState.guessedLetters = data.guessedLetters || [];
-  gameState.incorrectGuesses = data.incorrectGuesses || [];
-  gameState.attemptsLeft = data.attemptsLeft;
-  gameState.word = data.word;
-
-  updateUI();
-}
-
-function updateUI() {
-  // Wort-Fortschritt
-  wordDisplay.textContent = gameState.wordProgress || '_ _ _ _ _';
-
-  // Versuche übrig
-  attemptsLeftDisplay.textContent = gameState.attemptsLeft;
-
-  // Aktueller Spieler
-  if (gameState.players.length > 0) {
-    const currentPlayer = gameState.players[gameState.currentTurnIndex];
-    if (currentPlayer) {
-      const isMyTurn = currentPlayer.id === gameState.playerId;
-      currentPlayerNameDisplay.textContent = currentPlayer.player_name;
-      currentPlayerNameDisplay.className = isMyTurn ? 'turn-indicator your-turn' : 'turn-indicator';
-    }
-  }
-
-  // Spieler-Liste
-  updatePlayersList();
-
-  // Buchstaben-Buttons aktualisieren
-  updateLetterButtons();
-
-  // Hangman zeichnen
-  drawHangman();
-}
-
-function updatePlayersList() {
-  playersListContainer.innerHTML = '';
-
-  gameState.players.forEach((player, index) => {
-    const playerItem = document.createElement('div');
-    playerItem.className = 'player-item';
-
-    if (index === gameState.currentTurnIndex && gameState.status === 'playing') {
-      playerItem.classList.add('active-turn');
-    }
-
-    const avatar = document.createElement('div');
-    avatar.className = 'player-avatar';
-    avatar.textContent = player.player_name.charAt(0).toUpperCase();
-
-    const name = document.createElement('div');
-    name.className = 'player-name';
-    name.textContent = player.player_name + (player.is_host ? ' 👑' : '');
-
-    playerItem.appendChild(avatar);
-    playerItem.appendChild(name);
-    playersListContainer.appendChild(playerItem);
-  });
-}
-
-// ============================================
-// BUCHSTABEN-TASTATUR
-// ============================================
-function createLetterButtons() {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  lettersGrid.innerHTML = '';
-
-  for (let letter of alphabet) {
-    const btn = document.createElement('button');
-    btn.className = 'letter-btn';
-    btn.textContent = letter;
-    btn.dataset.letter = letter;
-    btn.addEventListener('click', () => handleLetterClick(letter, btn));
-    lettersGrid.appendChild(btn);
-  }
-}
-
-function updateLetterButtons() {
-  const buttons = lettersGrid.querySelectorAll('.letter-btn');
-
-  buttons.forEach(btn => {
-    const letter = btn.dataset.letter;
-
-    if (gameState.guessedLetters.includes(letter)) {
-      btn.disabled = true;
-      if (gameState.incorrectGuesses.includes(letter)) {
-        btn.classList.add('wrong');
-      } else {
-        btn.classList.add('correct');
-      }
+function renderPlayers(players = []) {
+  // 1) „Aktueller Spieler:“ -> wir zeigen ALLE (Komma-separiert) an
+  if (currentPlayerEl) {
+    if (players.length > 0) {
+      currentPlayerEl.textContent = players.join(", ");
     } else {
-      btn.disabled = gameState.status !== 'playing';
+      currentPlayerEl.textContent = "Warte auf Spieler...";
     }
+  }
+
+  // 2) Rechte Spalte: Liste/Kacheln
+  if (playersList) {
+    playersList.innerHTML = "";
+    players.forEach((p) => {
+      const row = document.createElement("div");
+      row.className = "chat-message"; // passt in deinen Stil
+      row.innerHTML = `
+        <div class="message-header">
+          <span class="message-user">${p}</span>
+        </div>
+      `;
+      playersList.appendChild(row);
+    });
+  }
+}
+
+function buildKeyboard() {
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ".split("");
+  lettersGrid.innerHTML = "";
+  letters.forEach((ch) => {
+    const b = document.createElement("button");
+    b.className = "letter-btn";
+    b.dataset.letter = ch;
+    b.textContent = ch;
+    b.addEventListener("click", () => sendGuess(ch));
+    lettersGrid.appendChild(b);
   });
 }
 
-async function handleLetterClick(letter, btn) {
-  // Prüfe ob Spieler an der Reihe ist
-  const currentPlayer = gameState.players[gameState.currentTurnIndex];
-  if (!currentPlayer || currentPlayer.id !== gameState.playerId) {
-    addSystemMessage('Du bist nicht an der Reihe!');
-    return;
+function renderState(state) {
+  currentState = state;
+
+  if (lobbyCodeDisp) lobbyCodeDisp.textContent = `CODE: ${gameId}`;
+  if (wordDisplay)   wordDisplay.textContent   = (state.maskedWord || "").split("").join(" ");
+  if (attemptsLeft)  attemptsLeft.textContent  = state.livesLeft ?? "-";
+
+  if (gameMessage) {
+    if (state.status === "WON")      { gameMessage.className = "game-message win";  gameMessage.textContent = "🎉 Gewonnen!"; }
+    else if (state.status === "LOST"){ gameMessage.className = "game-message lose"; gameMessage.textContent = "💀 Verloren!"; }
+    else                             { gameMessage.className = "game-message";      gameMessage.textContent = ""; }
   }
 
-  // Prüfe ob Spiel läuft
-  if (gameState.status !== 'playing') {
-    return;
+  for (const btn of lettersGrid.querySelectorAll("button.letter-btn")) {
+    const letter = btn.dataset.letter;
+    const guessed = state.guessed?.includes(letter);
+    btn.disabled = state.status !== "IN_PROGRESS" || guessed;
+    btn.classList.toggle("correct", guessed && state.maskedWord?.includes(letter));
+    btn.classList.toggle("wrong",   guessed && !state.maskedWord?.includes(letter));
   }
 
-  // Deaktiviere Button sofort
-  btn.disabled = true;
-
-  try {
-    await guessLetterSocket(gameState.lobbyId, gameState.playerId, letter);
-    // Game State wird über 'game:updated' Event aktualisiert
-  } catch (error) {
-    console.error('Fehler beim Raten:', error);
-    addSystemMessage('Fehler: ' + error);
-    btn.disabled = false;
+  if (initialLives == null && typeof state.livesLeft === "number") {
+    initialLives = state.livesLeft;
   }
+
+  const mistakes = Math.max(0, (initialLives ?? 6) - (state.livesLeft ?? (initialLives ?? 6)));
+  drawHangman(mistakes);
+
 }
 
-// ============================================
-// HANGMAN ZEICHNUNG
-// ============================================
-function clearCanvas() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-}
-
-function drawHangman() {
-  clearCanvas();
-
-  ctx.strokeStyle = '#333';
-  ctx.lineWidth = 3;
-  ctx.lineCap = 'round';
-
-  const wrongCount = gameState.maxAttempts - gameState.attemptsLeft;
-
-  if (wrongCount >= 1) {
-    // Galgen Basis
-    ctx.beginPath();
-    ctx.moveTo(20, 280);
-    ctx.lineTo(180, 280);
-    ctx.stroke();
-  }
-
-  if (wrongCount >= 2) {
-    // Vertikaler Balken
-    ctx.beginPath();
-    ctx.moveTo(50, 280);
-    ctx.lineTo(50, 20);
-    ctx.stroke();
-  }
-
-  if (wrongCount >= 3) {
-    // Horizontaler Balken
-    ctx.beginPath();
-    ctx.moveTo(50, 20);
-    ctx.lineTo(150, 20);
-    ctx.stroke();
-  }
-
-  if (wrongCount >= 4) {
-    // Seil
-    ctx.beginPath();
-    ctx.moveTo(150, 20);
-    ctx.lineTo(150, 50);
-    ctx.stroke();
-  }
-
-  if (wrongCount >= 5) {
-    // Kopf
-    ctx.beginPath();
-    ctx.arc(150, 70, 20, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-
-  if (wrongCount >= 6) {
-    // Körper
-    ctx.beginPath();
-    ctx.moveTo(150, 90);
-    ctx.lineTo(150, 150);
-    ctx.stroke();
-
-    // Arme
-    ctx.beginPath();
-    ctx.moveTo(150, 110);
-    ctx.lineTo(120, 130);
-    ctx.moveTo(150, 110);
-    ctx.lineTo(180, 130);
-    ctx.stroke();
-
-    // Beine
-    ctx.beginPath();
-    ctx.moveTo(150, 150);
-    ctx.lineTo(120, 190);
-    ctx.moveTo(150, 150);
-    ctx.lineTo(180, 190);
-    ctx.stroke();
-  }
-}
-
-// ============================================
-// GAME EVENTS
-// ============================================
-async function handleStartGame() {
-  if (!gameState.isHost) {
-    return;
-  }
-
-  startGameBtn.disabled = true;
-
-  try {
-    await startGameSocket(gameState.lobbyId);
-    // Game State wird über 'game:started' Event aktualisiert
-  } catch (error) {
-    console.error('Fehler beim Starten:', error);
-    alert('Fehler beim Starten des Spiels: ' + error);
-    startGameBtn.disabled = false;
-  }
-}
-
-async function handleNewGame() {
-  if (!gameState.isHost) {
-    return;
-  }
-
-  newGameBtn.disabled = true;
-
-  try {
-    await resetGameSocket(gameState.lobbyId);
-    // Game State wird über 'game:reset' Event aktualisiert
-  } catch (error) {
-    console.error('Fehler beim Zurücksetzen:', error);
-    alert('Fehler beim Zurücksetzen: ' + error);
-    newGameBtn.disabled = false;
-  }
-}
-
-function handleGameEnd(data) {
-  const hasWon = !data.wordProgress.includes('_');
-
-  if (hasWon) {
-    gameMessage.innerHTML = '<div class="game-message win">🎉 Glückwunsch! Das Wort wurde erraten!</div>';
-  } else {
-    gameMessage.innerHTML = `<div class="game-message lose">😢 Verloren! Das Wort war: <strong>${data.word}</strong></div>`;
-  }
-
-  // Zeige "Neues Spiel" Button für Host
-  if (gameState.isHost) {
-    newGameBtn.style.display = 'block';
-  }
-}
-
-function handleMenu() {
-  const confirmLeave = confirm('Möchtest du die Lobby wirklich verlassen?');
-  if (confirmLeave) {
-    sessionStorage.clear();
-    window.location.href = '../index.html';
-  }
-}
-
-// ============================================
-// CHAT SYSTEM
-// ============================================
-async function handleChatSubmit(e) {
-  e.preventDefault();
-
-  const message = chatInput.value.trim();
-  if (!message) return;
-
-  try {
-    await sendChatMessage(
-      gameState.lobbyId,
-      gameState.playerId,
-      gameState.playerName,
-      message
-    );
-    chatInput.value = '';
-  } catch (error) {
-    console.error('Fehler beim Senden:', error);
-  }
-}
-
-function addChatMessage(playerName, message, type = 'player') {
-  const messageDiv = document.createElement('div');
-  messageDiv.className = `chat-message ${type}`;
-
-  if (type === 'system') {
-    messageDiv.innerHTML = `<div class="message-text">${message}</div>`;
-  } else {
-    const now = new Date();
-    const timeStr = now.getHours().toString().padStart(2, '0') + ':' +
-                    now.getMinutes().toString().padStart(2, '0');
-
-    messageDiv.innerHTML = `
-      <div class="message-header">
-        <span class="message-user">${playerName}</span>
-        <span class="message-time">${timeStr}</span>
-      </div>
-      <div class="message-text">${escapeHtml(message)}</div>
-    `;
-  }
-
-  chatMessages.appendChild(messageDiv);
+function appendChat({ user, text, ts }) {
+  if (!chatMessages) return;
+  const el = document.createElement("div");
+  el.className = "chat-message";
+  const time = ts ? new Date(ts).toLocaleTimeString() : "";
+  el.innerHTML = `
+    <div class="message-header">
+      <span class="message-user">${user || "Player"}</span>
+      <span class="message-time">${time}</span>
+    </div>
+    <div class="message-text">${text}</div>
+  `;
+  chatMessages.appendChild(el);
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-function addSystemMessage(message) {
-  addChatMessage('System', message, 'system');
+async function bootstrap() {
+  if (!gameId) {
+    if (gameMessage) gameMessage.textContent = "Keine Session-ID übergeben.";
+    return;
+  }
+
+  buildKeyboard();
+  fitCanvas(canvas);
+  clearCanvas();
+  drawGallows();
+
+
+  // Initialen State laden
+  try {
+    const view = await apiGetGame(gameId);
+    renderState(view);
+  } catch {
+    if (gameMessage) gameMessage.textContent = "Spiel nicht gefunden.";
+    return;
+  }
+
+  // WS verbinden: wir geben den aktuellen Spielernamen mit
+  ws = connectGameWS(gameId, {
+    user: playerName,
+    onState: (view) => renderState(view),
+    onChat:  (msg)  => appendChat(msg),
+    onPlayers: ({ players }) => {
+      renderPlayers(players);
+    }
+  });
+
+  // Chat-Submit -> Redirect verhindern + senden
+  if (chatForm && chatInput) {
+    chatForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = chatInput.value.trim();
+      if (!text) return;
+      ws?.send({ type: "chat", gameId, user: playerName, text });
+      chatInput.value = "";
+    });
+  }
 }
 
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+async function sendGuess(letter) {
+  if (!currentState || currentState.status !== "IN_PROGRESS") return;
+  try {
+    const view = await apiGuess(gameId, letter);
+    renderState(view);
+  } catch (e) {
+    console.error("guess failed", e);
+  }
 }
 
-// ============================================
-// START
-// ============================================
-window.addEventListener('DOMContentLoaded', init);
+// --- Canvas Setup ---
+const canvas = document.getElementById("hangmanCanvas");
+const ctx = canvas ? canvas.getContext("2d") : null;
 
-console.log('🎮 Hangman Game Module geladen');
+// Für sauberes Rendering auf High-DPI
+function fitCanvas(cnv) {
+  if (!cnv) return;
+  const ratio = window.devicePixelRatio || 1;
+  const displayWidth  = cnv.clientWidth  || cnv.width;
+  const displayHeight = cnv.clientHeight || cnv.height;
+  cnv.width  = Math.floor(displayWidth  * ratio);
+  cnv.height = Math.floor(displayHeight * ratio);
+  const context = cnv.getContext("2d");
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
+}
+
+function clearCanvas() {
+  if (!ctx || !canvas) return;
+  // Hintergrund „hellgrau“ (wie dein Feld)
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // optional: leichter Hintergrund
+  // ctx.fillStyle = "#f6f7f8";
+  // ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+// Einzelteile des Hangman
+function drawGallows() {
+  if (!ctx) return;
+  const w = canvas.clientWidth || 640;
+  const h = canvas.clientHeight || 420;
+  // Koordinaten relativ definieren
+  const baseY = h - 20, leftX = 60, topY = 40, beamX = 220;
+
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = "#7a1f53";
+
+  // Boden
+  ctx.beginPath();
+  ctx.moveTo(20, baseY); ctx.lineTo(w - 20, baseY); ctx.stroke();
+
+  // Pfosten
+  ctx.beginPath();
+  ctx.moveTo(leftX, baseY); ctx.lineTo(leftX, topY); ctx.stroke();
+
+  // Querbalken
+  ctx.beginPath();
+  ctx.moveTo(leftX, topY); ctx.lineTo(beamX, topY); ctx.stroke();
+
+  // Seil
+  ctx.beginPath();
+  ctx.moveTo(beamX, topY); ctx.lineTo(beamX, topY + 40); ctx.stroke();
+}
+
+function drawHead() {
+  if (!ctx) return;
+  const beamX = 220, topY = 40;
+  ctx.beginPath();
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = "#333";
+  ctx.arc(beamX, topY + 70, 30, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+function drawBody() {
+  if (!ctx) return;
+  const beamX = 220, topY = 40;
+  ctx.beginPath();
+  ctx.moveTo(beamX, topY + 100);
+  ctx.lineTo(beamX, topY + 180);
+  ctx.stroke();
+}
+
+function drawLeftArm() {
+  if (!ctx) return;
+  const beamX = 220, topY = 40;
+  ctx.beginPath();
+  ctx.moveTo(beamX, topY + 120);
+  ctx.lineTo(beamX - 40, topY + 150);
+  ctx.stroke();
+}
+
+function drawRightArm() {
+  if (!ctx) return;
+  const beamX = 220, topY = 40;
+  ctx.beginPath();
+  ctx.moveTo(beamX, topY + 120);
+  ctx.lineTo(beamX + 40, topY + 150);
+  ctx.stroke();
+}
+
+function drawLeftLeg() {
+  if (!ctx) return;
+  const beamX = 220, topY = 40;
+  ctx.beginPath();
+  ctx.moveTo(beamX, topY + 180);
+  ctx.lineTo(beamX - 35, topY + 230);
+  ctx.stroke();
+}
+
+function drawRightLeg() {
+  if (!ctx) return;
+  const beamX = 220, topY = 40;
+  ctx.beginPath();
+  ctx.moveTo(beamX, topY + 180);
+  ctx.lineTo(beamX + 35, topY + 230);
+  ctx.stroke();
+}
+
+/**
+ * Zeichnet abhängig von der Anzahl Fehler (mistakes) die Komponenten.
+ * Standard: 6 Leben => 6 Fehlerstufen (0..6)
+ * 0: nur Galgen, 1: Kopf, 2: Körper, 3: linker Arm, 4: rechter Arm, 5: linkes Bein, 6: rechtes Bein
+ */
+function drawHangman(mistakes) {
+  if (!ctx || !canvas) return;
+  fitCanvas(canvas);
+  clearCanvas();
+  drawGallows();
+
+  if (mistakes >= 1) drawHead();
+  if (mistakes >= 2) drawBody();
+  if (mistakes >= 3) drawLeftArm();
+  if (mistakes >= 4) drawRightArm();
+  if (mistakes >= 5) drawLeftLeg();
+  if (mistakes >= 6) drawRightLeg();
+}
+
+
+window.addEventListener("beforeunload", () => ws && ws.close());
+bootstrap();

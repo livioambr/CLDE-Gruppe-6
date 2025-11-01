@@ -112,6 +112,19 @@ input {
   min-height: 30px;
 }
 
+.message.info {
+  color: #1565c0;
+}
+
+.message.win {
+  color: #2e7d32;
+}
+
+.message.lose,
+.message.error {
+  color: #c62828;
+}
+
 /* --- Chat Container --- */
 #chat-container {
     position: fixed;

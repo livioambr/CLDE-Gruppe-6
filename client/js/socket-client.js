@@ -1,215 +1,59 @@
-// Socket.io Client für Hangman Multiplayer
-// Exportiert Socket-Instanz und Helper-Funktionen
+// ---- Auto-Detect der API/WS-URLs, mit optionalen Overrides via Query (?api= & ?ws= & ?apiPort=) ----
+function qp(name) { return new URLSearchParams(location.search).get(name); }
+const proto   = location.protocol === "https:" ? "https" : "http";
+const wsProto = proto === "https" ? "wss" : "ws";
+const host    = location.hostname || "localhost";
+const port    = qp("apiPort") || "8080";
 
-const SERVER_URL = window.location.origin; // Verwendet automatisch die aktuelle URL
-let socket = null;
-let isConnected = false;
+export const API_BASE = qp("api") || `${proto}://${host}:${port}`;
+export const WS_BASE  = qp("ws")  || `${wsProto}://${host}:${port}/ws`;
 
-// Socket.io initialisieren
-export function initSocket() {
-  if (socket && isConnected) {
-    console.log('Socket bereits verbunden');
-    return socket;
-  }
+// ---- WebSocket Helper ----
+export function connectGameWS(gameId, { onOpen, onState, onChat, onPlayers, onError, onClose, user } = {}) {
+  const ws = new WebSocket(WS_BASE);
 
-  socket = io(SERVER_URL, {
-    reconnection: true,
-    reconnectionDelay: 1000,
-    reconnectionDelayMax: 5000,
-    reconnectionAttempts: 5
+  ws.addEventListener("open", () => {
+    onOpen && onOpen();
+    ws.send(JSON.stringify({ type: "join", gameId, user: user || "Player" })); // <-- user mitsenden
   });
 
-  // Connection Events
-  socket.on('connect', () => {
-    console.log('✅ Socket verbunden:', socket.id);
-    isConnected = true;
+  ws.addEventListener("message", (evt) => {
+    try {
+      const msg = JSON.parse(evt.data);
+      if (msg.type === "state")   onState   && onState(msg.payload);
+      else if (msg.type === "chat")    onChat    && onChat(msg.payload);
+      else if (msg.type === "players") onPlayers && onPlayers(msg.payload);   // <-- neu
+    } catch (e) { console.error("WS parse error", e); }
   });
 
-  socket.on('disconnect', (reason) => {
-    console.log('❌ Socket getrennt:', reason);
-    isConnected = false;
+  ws.addEventListener("error", (e) => onError && onError(e));
+  ws.addEventListener("close", () => onClose && onClose());
+
+  return {
+    send(obj) { if (ws.readyState === 1) ws.send(JSON.stringify(obj)); },
+    close() { ws.close(); }
+  };
+}
+
+// ---- REST Helper (entspricht exakt deinem Server) ----
+export async function apiCreateGame() {
+  const r = await fetch(`${API_BASE}/games`, { method: "POST" });
+  if (!r.ok) throw new Error("create failed");
+  return r.json();
+}
+
+export async function apiGetGame(id) {
+  const r = await fetch(`${API_BASE}/games/${encodeURIComponent(id)}`);
+  if (!r.ok) throw new Error("not found");
+  return r.json();
+}
+
+export async function apiGuess(id, letter) {
+  const r = await fetch(`${API_BASE}/games/${encodeURIComponent(id)}/guess`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ letter })
   });
-
-  socket.on('connect_error', (error) => {
-    console.error('Socket Verbindungsfehler:', error);
-    isConnected = false;
-  });
-
-  socket.on('reconnect', (attemptNumber) => {
-    console.log(`🔄 Reconnected nach ${attemptNumber} Versuchen`);
-    isConnected = true;
-  });
-
-  socket.on('reconnect_failed', () => {
-    console.error('❌ Reconnect fehlgeschlagen');
-    showError('Verbindung zum Server verloren. Bitte Seite neu laden.');
-  });
-
-  return socket;
+  if (!r.ok) throw new Error("guess failed");
+  return r.json();
 }
-
-// Socket-Instanz abrufen
-export function getSocket() {
-  if (!socket) {
-    return initSocket();
-  }
-  return socket;
-}
-
-// Prüfe ob Socket verbunden ist
-export function isSocketConnected() {
-  return socket && isConnected;
-}
-
-// Event-Handler registrieren
-export function on(event, callback) {
-  const s = getSocket();
-  s.on(event, callback);
-}
-
-// Event mit einmaliger Ausführung
-export function once(event, callback) {
-  const s = getSocket();
-  s.once(event, callback);
-}
-
-// Event-Handler entfernen
-export function off(event, callback) {
-  if (socket) {
-    socket.off(event, callback);
-  }
-}
-
-// Event senden (mit Callback)
-export function emit(event, data, callback) {
-  const s = getSocket();
-  if (callback) {
-    s.emit(event, data, callback);
-  } else {
-    return new Promise((resolve, reject) => {
-      s.emit(event, data, (response) => {
-        if (response.success) {
-          resolve(response);
-        } else {
-          reject(response.error || 'Unbekannter Fehler');
-        }
-      });
-    });
-  }
-}
-
-// Helper: Lobby beitreten
-export async function joinLobbySocket(lobbyId, playerId, playerName) {
-  try {
-    const response = await emit('player:join', {
-      lobbyId,
-      playerId,
-      playerName
-    });
-    console.log('Lobby beigetreten:', response);
-    return response;
-  } catch (error) {
-    console.error('Fehler beim Beitreten:', error);
-    throw error;
-  }
-}
-
-// Helper: Spiel starten
-export async function startGameSocket(lobbyId) {
-  try {
-    const response = await emit('game:start', { lobbyId });
-    console.log('Spiel gestartet:', response);
-    return response;
-  } catch (error) {
-    console.error('Fehler beim Starten:', error);
-    throw error;
-  }
-}
-
-// Helper: Buchstabe raten
-export async function guessLetterSocket(lobbyId, playerId, letter) {
-  try {
-    const response = await emit('game:guess', {
-      lobbyId,
-      playerId,
-      letter
-    });
-    console.log('Buchstabe geraten:', letter, response);
-    return response;
-  } catch (error) {
-    console.error('Fehler beim Raten:', error);
-    throw error;
-  }
-}
-
-// Helper: Chat-Nachricht senden
-export async function sendChatMessage(lobbyId, playerId, playerName, message) {
-  try {
-    const response = await emit('chat:message', {
-      lobbyId,
-      playerId,
-      playerName,
-      message
-    });
-    console.log('Nachricht gesendet:', message);
-    return response;
-  } catch (error) {
-    console.error('Fehler beim Senden:', error);
-    throw error;
-  }
-}
-
-// Helper: Spiel zurücksetzen
-export async function resetGameSocket(lobbyId) {
-  try {
-    const response = await emit('game:reset', { lobbyId });
-    console.log('Spiel zurückgesetzt:', response);
-    return response;
-  } catch (error) {
-    console.error('Fehler beim Zurücksetzen:', error);
-    throw error;
-  }
-}
-
-// Ping-Pong für Connection-Check
-export function ping() {
-  return new Promise((resolve) => {
-    const s = getSocket();
-    s.emit('ping', (response) => {
-      resolve(response);
-    });
-  });
-}
-
-// Fehler-Nachricht anzeigen (kann überschrieben werden)
-function showError(message) {
-  console.error(message);
-  alert(message);
-}
-
-// Socket trennen
-export function disconnect() {
-  if (socket) {
-    socket.disconnect();
-    socket = null;
-    isConnected = false;
-    console.log('Socket getrennt');
-  }
-}
-
-export default {
-  initSocket,
-  getSocket,
-  isSocketConnected,
-  on,
-  once,
-  off,
-  emit,
-  joinLobbySocket,
-  startGameSocket,
-  guessLetterSocket,
-  sendChatMessage,
-  resetGameSocket,
-  ping,
-  disconnect
-};

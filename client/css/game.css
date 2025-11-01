@@ -98,6 +98,20 @@ body {
 /* ============================================
    LINKE SPALTE: HANGMAN ZEICHNUNG
    ============================================ */
+
+#hangmanCanvasWrap {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center; 
+  justify-content: center;
+}
+
+#hangmanCanvas {
+  width: 95%;      /* responsive im Container */
+  height: auto;
+}
+
 .hangman-column {
   background: white;
   border-radius: 16px;

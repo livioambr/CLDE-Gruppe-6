@@ -1,192 +1,51 @@
-// Lobby System - REST API Integration
+import { apiCreateGame, apiGetGame } from "./socket-client.js";
 
-const API_BASE = window.location.origin + '/api';
+const $ = (s) => document.querySelector(s);
 
-// DOM Elemente
-const playerNameInput = document.getElementById('playerName');
-const sessionCodeInput = document.getElementById('sessionCode');
-const createSessionBtn = document.getElementById('createSessionBtn');
-const joinSessionBtn = document.getElementById('joinSessionBtn');
-const lobbyMessage = document.getElementById('lobbyMessage');
-const loading = document.getElementById('loading');
+const playerNameInput = $("#playerName");
+const createBtn       = $("#createSessionBtn");
+const joinBtn         = $("#joinSessionBtn");
+const codeInput       = $("#sessionCode");
+const msg             = $("#lobbyMessage");
+const loading         = $("#loading");
 
-// Session erstellen
-createSessionBtn.addEventListener('click', async () => {
-  const playerName = playerNameInput.value.trim();
-
-  if (!playerName) {
-    showMessage('Bitte gib einen Spielernamen ein.', 'error');
-    return;
-  }
-
-  if (playerName.length < 2) {
-    showMessage('Spielername muss mindestens 2 Zeichen lang sein.', 'error');
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    const response = await fetch(`${API_BASE}/lobby/create`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ playerName })
-    });
-
-    const data = await response.json();
-
-    if (data.success) {
-      // Speichere Session-Daten in sessionStorage
-      sessionStorage.setItem('playerId', data.player.id);
-      sessionStorage.setItem('playerName', data.player.name);
-      sessionStorage.setItem('lobbyId', data.lobby.id);
-      sessionStorage.setItem('lobbyCode', data.lobby.code);
-      sessionStorage.setItem('sessionId', data.sessionId);
-      sessionStorage.setItem('isHost', data.player.isHost);
-
-      showMessage(`Session erstellt! Code: ${data.lobby.code}`, 'success');
-
-      // Weiterleitung nach kurzer Verzögerung
-      setTimeout(() => {
-        window.location.href = 'game.html';
-      }, 1500);
-    } else {
-      showMessage(data.error || 'Fehler beim Erstellen der Session', 'error');
-    }
-  } catch (error) {
-    console.error('Fehler beim Erstellen:', error);
-    showMessage('Verbindung zum Server fehlgeschlagen. Ist der Server gestartet?', 'error');
-  } finally {
-    setLoading(false);
-  }
-});
-
-// Session beitreten
-joinSessionBtn.addEventListener('click', async () => {
-  const playerName = playerNameInput.value.trim();
-  const lobbyCode = sessionCodeInput.value.trim().toUpperCase();
-
-  if (!playerName) {
-    showMessage('Bitte gib einen Spielernamen ein.', 'error');
-    return;
-  }
-
-  if (playerName.length < 2) {
-    showMessage('Spielername muss mindestens 2 Zeichen lang sein.', 'error');
-    return;
-  }
-
-  if (!lobbyCode || lobbyCode.length !== 6) {
-    showMessage('Bitte gib einen gültigen 6-stelligen Code ein.', 'error');
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    const response = await fetch(`${API_BASE}/lobby/join`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ playerName, lobbyCode })
-    });
-
-    const data = await response.json();
-
-    if (data.success) {
-      // Speichere Session-Daten
-      sessionStorage.setItem('playerId', data.player.id);
-      sessionStorage.setItem('playerName', data.player.name);
-      sessionStorage.setItem('lobbyId', data.lobby.id);
-      sessionStorage.setItem('lobbyCode', data.lobby.code);
-      sessionStorage.setItem('sessionId', data.sessionId);
-      sessionStorage.setItem('isHost', data.player.isHost);
-
-      showMessage(`Beigetreten! Code: ${data.lobby.code}`, 'success');
-
-      // Weiterleitung nach kurzer Verzögerung
-      setTimeout(() => {
-        window.location.href = 'game.html';
-      }, 1500);
-    } else {
-      showMessage(data.error || 'Fehler beim Beitreten', 'error');
-    }
-  } catch (error) {
-    console.error('Fehler beim Beitreten:', error);
-    showMessage('Verbindung zum Server fehlgeschlagen. Ist der Server gestartet?', 'error');
-  } finally {
-    setLoading(false);
-  }
-});
-
-// Helper: Nachricht anzeigen
-function showMessage(msg, type = 'info') {
-  lobbyMessage.textContent = msg;
-  lobbyMessage.className = `message ${type}`;
-  lobbyMessage.style.display = 'block';
-
-  // Nach 5 Sekunden ausblenden (außer bei success)
-  if (type !== 'success') {
-    setTimeout(() => {
-      lobbyMessage.style.display = 'none';
-    }, 5000);
-  }
+function setLoading(on) {
+  if (loading) loading.style.display = on ? "block" : "none";
+  if (createBtn) createBtn.disabled = on;
+  if (joinBtn)   joinBtn.disabled   = on;
 }
 
-// Helper: Loading-Zustand
-function setLoading(isLoading) {
-  loading.style.display = isLoading ? 'block' : 'none';
-  createSessionBtn.disabled = isLoading;
-  joinSessionBtn.disabled = isLoading;
-  playerNameInput.disabled = isLoading;
-  sessionCodeInput.disabled = isLoading;
+function goGame(gameId, name) {
+  const p = new URLSearchParams({ gameId, name });
+  // Auf die Spielseite wechseln und gameId/playerName übergeben
+  window.location.href = `./game.html?${p.toString()}`;
 }
 
-// Auto-uppercase für Session-Code
-sessionCodeInput.addEventListener('input', (e) => {
-  e.target.value = e.target.value.toUpperCase();
+createBtn?.addEventListener("click", async () => {
+  const name = (playerNameInput?.value || "").trim() || "Player";
+  setLoading(true);
+  if (msg) { msg.className = "message info"; msg.textContent = "Erstelle Spiel..."; }
+  try {
+    const game = await apiCreateGame();   // POST /games
+    goGame(game.id, name);
+  } catch {
+    if (msg) { msg.className = "message error"; msg.textContent = "Erstellen fehlgeschlagen."; }
+  } finally { setLoading(false); }
 });
 
-// Enter-Taste Handler
-playerNameInput.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
-    createSessionBtn.click();
+joinBtn?.addEventListener("click", async () => {
+  const name = (playerNameInput?.value || "").trim() || "Player";
+  const id   = (codeInput?.value || "").trim();
+  if (!id) {
+    if (msg) { msg.className = "message error"; msg.textContent = "Bitte Session-ID eingeben."; }
+    return;
   }
+  setLoading(true);
+  if (msg) { msg.className = "message info"; msg.textContent = "Prüfe Session..."; }
+  try {
+    await apiGetGame(id);                 // GET /games/:id
+    goGame(id, name);
+  } catch {
+    if (msg) { msg.className = "message error"; msg.textContent = "Session nicht gefunden."; }
+  } finally { setLoading(false); }
 });
-
-sessionCodeInput.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
-    joinSessionBtn.click();
-  }
-});
-
-// Prüfe ob bereits eine Session vorhanden ist
-window.addEventListener('DOMContentLoaded', () => {
-  const existingLobbyId = sessionStorage.getItem('lobbyId');
-  const existingPlayerName = sessionStorage.getItem('playerName');
-
-  if (existingLobbyId && existingPlayerName) {
-    showMessage(
-      `Du bist bereits in einer Session als "${existingPlayerName}". Möchtest du fortfahren?`,
-      'info'
-    );
-
-    // Button hinzufügen um zurückzukehren
-    const continueBtn = document.createElement('button');
-    continueBtn.textContent = 'Zur Session zurückkehren';
-    continueBtn.className = 'btn btn-secondary';
-    continueBtn.style.marginTop = '10px';
-    continueBtn.onclick = () => {
-      window.location.href = 'game.html';
-    };
-
-    lobbyMessage.appendChild(document.createElement('br'));
-    lobbyMessage.appendChild(continueBtn);
-  }
-});
-
-console.log('🎮 Lobby System geladen');
-console.log('🔗 API Basis-URL:', API_BASE);

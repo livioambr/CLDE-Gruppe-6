@@ -27,8 +27,8 @@
     <div class="hangman-column">
       <h2>HANGMAN</h2>
 
-      <div class="canvas-container">
-        <canvas id="hangmanCanvas" width="300" height="300"></canvas>
+      <div id="hangmanCanvasWrap">
+        <canvas id="hangmanCanvas" width="640" height="420"></canvas>
       </div>
 
       <div class="attempts-display">
@@ -106,11 +106,7 @@
 
   </div>
 
-  <!-- Socket.io Client Library -->
-  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
-
-  <!-- Game Scripts -->
-  <script type="module" src="../js/socket-client.js"></script>
   <script type="module" src="../js/game.js"></script>
+
 </body>
 </html>
