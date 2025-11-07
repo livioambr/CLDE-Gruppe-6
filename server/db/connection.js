@@ -9,7 +9,6 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// MySQL Connection Pool (ohne Database für Initialisierung)
 const poolConfig = {
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT) || 3306,
@@ -22,31 +21,44 @@ const poolConfig = {
   keepAliveInitialDelay: 0
 };
 
-// Pool wird nach DB-Initialisierung mit Database erstellt
 let pool = mysql.createPool(poolConfig);
 
-// Datenbankverbindung testen und Schema initialisieren
+/**
+ * Versucht, die Datenbankverbindung herzustellen — mit Retry-Mechanismus.
+ */
+async function connectWithRetry() {
+  while (true) {
+    try {
+      const connection = await pool.getConnection();
+      console.log('✅ MySQL Verbindung erfolgreich');
+      connection.release();
+      break; // Erfolg → aus der Schleife raus
+    } catch (error) {
+      console.error('❌ Verbindungsfehler:', error.message);
+      console.log('🔁 Neuer Verbindungsversuch in 10 Sekunden...');
+      await new Promise(resolve => setTimeout(resolve, 10_000));
+    }
+  }
+}
+
+/**
+ * Initialisiert Datenbank (erstellt DB und Tabellen bei Bedarf)
+ */
 export async function initializeDatabase() {
+  await connectWithRetry(); // Warte bis Verbindung klappt
+
+  const connection = await pool.getConnection();
+  const dbName = process.env.DB_NAME || 'hangman_game';
+
   try {
-    // Teste Verbindung
-    const connection = await pool.getConnection();
-    console.log('✅ MySQL Verbindung erfolgreich');
-
-    const dbName = process.env.DB_NAME || 'hangman_game';
-
-    // Prüfe ob Datenbank existiert
     const [databases] = await connection.query(
       `SHOW DATABASES LIKE '${dbName}'`
     );
 
     if (databases.length === 0) {
       console.log('📝 Erstelle Datenbank und Tabellen...');
-
-      // Lese Schema-Datei
       const schemaPath = join(__dirname, 'schema.sql');
       const schema = readFileSync(schemaPath, 'utf-8');
-
-      // Führe Schema-Script aus (Statement für Statement)
       const statements = schema
         .split(';')
         .map(s => s.trim())
@@ -56,14 +68,12 @@ export async function initializeDatabase() {
         try {
           await connection.query(statement);
         } catch (err) {
-          // Ignoriere "already exists" Fehler
           if (!err.message.includes('already exists')) {
             console.error('Fehler bei SQL Statement:', statement.substring(0, 50) + '...');
             throw err;
           }
         }
       }
-
       console.log('✅ Datenbank und Tabellen erfolgreich erstellt');
     } else {
       console.log('✅ Datenbank existiert bereits');
@@ -71,7 +81,7 @@ export async function initializeDatabase() {
 
     connection.release();
 
-    // Recreate pool mit Database-Auswahl
+    // Recreate Pool mit ausgewählter Datenbank
     await pool.end();
     pool = mysql.createPool({
       ...poolConfig,
@@ -80,13 +90,11 @@ export async function initializeDatabase() {
 
     return true;
   } catch (error) {
-    console.error('❌ Datenbankfehler:', error.message);
-    console.error('Stelle sicher, dass MySQL läuft und die .env Konfiguration korrekt ist');
+    console.error('❌ Fehler bei der DB-Initialisierung:', error.message);
     return false;
   }
 }
 
-// Helper Funktion: Query ausführen
 export async function query(sql, params = []) {
   try {
     const [results] = await pool.execute(sql, params);
@@ -97,13 +105,11 @@ export async function query(sql, params = []) {
   }
 }
 
-// Helper Funktion: Einzelnes Ergebnis
 export async function queryOne(sql, params = []) {
   const results = await query(sql, params);
   return results[0] || null;
 }
 
-// Verbindung beim Beenden schließen
 process.on('SIGINT', async () => {
   await pool.end();
   console.log('MySQL Connection Pool geschlossen');
