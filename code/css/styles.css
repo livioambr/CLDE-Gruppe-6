@@ -111,3 +111,15 @@ input {
   font-weight: bold;
   min-height: 30px;
 }
+
+.hangman-drawing {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 30px;
+    }
+
+    canvas {
+      border: 3px solid #8c195f;
+      border-radius: 10px;
+      background: #f8f9fa;
+    }
