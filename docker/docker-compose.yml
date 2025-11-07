@@ -2,7 +2,7 @@ name: CLDE-Hangman
 
 services:
   hangman-server:
-   image: hangman:v0.1
+   image: hangman:v0.2
    restart: unless-stopped
    ports:
     - "3000:3000"
@@ -31,8 +31,6 @@ services:
       - hangman
     volumes:
       - db-data:/var/lib/mysql
-      - ../server/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
-
 
 networks:
   hangman:
