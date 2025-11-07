@@ -6,7 +6,6 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 20px;
   margin: 0;
 }
 
@@ -44,6 +43,8 @@ p {
 .btn.primary {
   background: #8c195f;
   color: white;
+  text-align: center;
+  display: block;
 }
 
 .btn.secondary {
