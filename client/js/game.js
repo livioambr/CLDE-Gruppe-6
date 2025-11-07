@@ -6,7 +6,9 @@ import {
   startGameSocket,
   guessLetterSocket,
   sendChatMessage,
-  resetGameSocket
+  resetGameSocket,
+  hostLeaveLobby,
+  playerLeaveLobby
 } from './socket-client.js';
 
 // ============================================
@@ -182,6 +184,16 @@ function setupSocketListeners() {
     addChatMessage(data.playerName, data.message, data.messageType);
   });
 }
+
+// Lobby geschlossen (z. B. Host hat verlassen)
+on('lobby:closed', () => {
+  addSystemMessage('Der Host hat die Lobby verlassen. Du wirst zurück ins Menü geleitet.');
+  
+  setTimeout(() => {
+    sessionStorage.clear();
+    window.location.href = '../index.html';
+  }, 3000); // 3 Sekunden warten, um Nachricht zu sehen
+});
 
 // ============================================
 // GAME STATE MANAGEMENT
@@ -451,10 +463,23 @@ function handleGameEnd(data) {
 function handleMenu() {
   const confirmLeave = confirm('Möchtest du die Lobby wirklich verlassen?');
   if (confirmLeave) {
-    sessionStorage.clear();
-    window.location.href = '../index.html';
+    (async () => {
+      try {
+        if (gameState.isHost) {
+          await hostLeaveLobby(gameState.lobbyId);
+        } else {
+          await playerLeaveLobby(gameState.lobbyId, gameState.playerId);
+        }
+      } catch (error) {
+        console.error('Fehler beim Verlassen der Lobby:', error);
+      } finally {
+        sessionStorage.clear();
+        window.location.href = '../index.html';
+      }
+    })();
   }
 }
+
 
 // ============================================
 // CHAT SYSTEM

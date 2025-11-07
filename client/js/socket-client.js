@@ -114,6 +114,19 @@ export async function joinLobbySocket(lobbyId, playerId, playerName) {
   }
 }
 
+
+// Helper: Host verlässt Lobby
+export async function hostLeaveLobby(lobbyId) {
+  return emit('host:left', { lobbyId });
+}
+
+// Helper: Spieler verlässt Lobby
+export async function playerLeaveLobby(lobbyId, playerId) {
+  return emit('player:left', { lobbyId, playerId });
+}
+
+
+
 // Helper: Spiel starten
 export async function startGameSocket(lobbyId) {
   try {

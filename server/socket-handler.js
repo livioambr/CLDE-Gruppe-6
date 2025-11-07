@@ -22,41 +22,69 @@ export function setupSocketHandlers(io) {
       try {
         const { lobbyId, playerId, playerName } = data;
 
-        // Hole Lobby-Details
         const lobby = await getLobby(lobbyId);
-        if (!lobby) {
-          return callback({ success: false, error: 'Lobby nicht gefunden' });
-        }
+        if (!lobby) return callback({ success: false, error: 'Lobby nicht gefunden' });
 
-        // Speichere Spieler-Info
         currentPlayer = { id: playerId, name: playerName, lobbyId };
         currentLobby = lobbyId;
 
-        // Tritt Socket-Room bei
         socket.join(lobbyId);
 
-        // Sende Chat-Historie
         const chatHistory = await getChatHistory(lobbyId);
-
-        // Benachrichtige andere Spieler
         await sendSystemMessage(lobbyId, `${playerName} ist beigetreten`);
+
         socket.to(lobbyId).emit('player:joined', {
           playerId,
           playerName,
           playerCount: lobby.players.length
         });
 
-        // Sende aktuelle Lobby-Daten zurück
-        callback({
-          success: true,
-          lobby,
-          chatHistory
-        });
-
+        callback({ success: true, lobby, chatHistory });
         console.log(`✅ ${playerName} trat Lobby ${lobby.code} bei`);
       } catch (error) {
         console.error('Fehler bei player:join:', error);
         callback({ success: false, error: error.message });
+      }
+    });
+
+    // Host verlässt Lobby → alle Spieler raus
+    socket.on('host:left', async (data) => {
+      try {
+        const { lobbyId } = data;
+        const lobby = await getLobby(lobbyId);
+        if (!lobby) return;
+
+        // Hole alle Spieler
+        const players = lobby.players || [];
+
+        // Informiere alle Spieler, dass die Lobby geschlossen wird
+        players.forEach(p => {
+          if (p.id !== currentPlayer?.id) {
+            io.to(p.id).emit('lobby:closed');
+          }
+        });
+
+        // Lobby, Spieler und Game State löschen
+        await removePlayer(null, lobbyId); // löscht alle Spieler der Lobby
+        await resetGame(lobbyId);          // optional: reset GameState
+        console.log(`🗑️ Lobby ${lobbyId} geschlossen vom Host`);
+      } catch (error) {
+        console.error('Fehler bei host:left:', error);
+      }
+    });
+
+    // Spieler verlässt Lobby (nicht Host)
+    socket.on('player:left', async (data) => {
+      try {
+        const { lobbyId, playerId } = data;
+        await removePlayer(playerId);
+
+        socket.to(lobbyId).emit('player:left', { playerId });
+        await sendSystemMessage(lobbyId, `${currentPlayer?.name} hat die Lobby verlassen`);
+
+        console.log(`👋 Spieler ${playerId} hat Lobby ${lobbyId} verlassen`);
+      } catch (error) {
+        console.error('Fehler bei player:left:', error);
       }
     });
 
@@ -68,12 +96,10 @@ export function setupSocketHandlers(io) {
         await startGame(lobbyId);
         const gameState = await getGameState(lobbyId);
 
-        // Benachrichtige alle Spieler
         io.to(lobbyId).emit('game:started', gameState);
         await sendSystemMessage(lobbyId, 'Spiel gestartet!');
 
         callback({ success: true, gameState });
-
         console.log(`🎮 Spiel in Lobby ${lobbyId} gestartet`);
       } catch (error) {
         console.error('Fehler bei game:start:', error);
@@ -87,53 +113,21 @@ export function setupSocketHandlers(io) {
         const { lobbyId, playerId, letter } = data;
 
         const result = await guessLetter(lobbyId, playerId, letter);
+        if (!result.success) return callback(result);
 
-        if (!result.success) {
-          return callback(result);
-        }
-
-        // Hole aktualisierten Game State
         const gameState = await getGameState(lobbyId);
-
-        // Benachrichtige alle Spieler
         io.to(lobbyId).emit('game:updated', {
           ...gameState,
-          lastGuess: {
-            playerId,
-            letter,
-            isCorrect: result.isCorrect
-          }
+          lastGuess: { playerId, letter, isCorrect: result.isCorrect }
         });
 
-        // System-Nachricht für Gewinn/Verlust
-        if (result.hasWon) {
-          await sendSystemMessage(lobbyId, '🎉 Glückwunsch! Das Wort wurde erraten!');
-        } else if (result.hasLost) {
-          await sendSystemMessage(lobbyId, `😢 Verloren! Das Wort war: ${result.word}`);
-        }
+        if (result.hasWon) await sendSystemMessage(lobbyId, '🎉 Glückwunsch! Das Wort wurde erraten!');
+        else if (result.hasLost) await sendSystemMessage(lobbyId, `😢 Verloren! Das Wort war: ${result.word}`);
 
         callback({ success: true, result, gameState });
-
         console.log(`🎲 Buchstabe "${letter}" geraten - ${result.isCorrect ? '✅' : '❌'}`);
       } catch (error) {
         console.error('Fehler bei game:guess:', error);
-        callback({ success: false, error: error.message });
-      }
-    });
-
-    // Chat-Nachricht senden
-    socket.on('chat:message', async (data, callback) => {
-      try {
-        const { lobbyId, playerId, playerName, message } = data;
-
-        const result = await sendMessage(lobbyId, playerId, playerName, message);
-
-        // Sende an alle Spieler in der Lobby
-        io.to(lobbyId).emit('chat:new-message', result.message);
-
-        callback({ success: true });
-      } catch (error) {
-        console.error('Fehler bei chat:message:', error);
         callback({ success: false, error: error.message });
       }
     });
@@ -146,12 +140,10 @@ export function setupSocketHandlers(io) {
         await resetGame(lobbyId);
         const gameState = await getGameState(lobbyId);
 
-        // Benachrichtige alle Spieler
         io.to(lobbyId).emit('game:reset', gameState);
         await sendSystemMessage(lobbyId, '🔄 Neues Spiel gestartet!');
 
         callback({ success: true, gameState });
-
         console.log(`🔄 Spiel in Lobby ${lobbyId} zurückgesetzt`);
       } catch (error) {
         console.error('Fehler bei game:reset:', error);
@@ -165,15 +157,11 @@ export function setupSocketHandlers(io) {
 
       if (currentPlayer && currentLobby) {
         try {
-          // Markiere Spieler als offline
           await removePlayer(currentPlayer.id);
-
-          // Benachrichtige andere Spieler
           socket.to(currentLobby).emit('player:left', {
             playerId: currentPlayer.id,
             playerName: currentPlayer.name
           });
-
           await sendSystemMessage(currentLobby, `${currentPlayer.name} hat die Lobby verlassen`);
 
           console.log(`👋 ${currentPlayer.name} hat Lobby verlassen`);
@@ -183,7 +171,7 @@ export function setupSocketHandlers(io) {
       }
     });
 
-    // Ping-Pong für Connection-Check
+    // Ping-Pong
     socket.on('ping', (callback) => {
       callback({ pong: true, timestamp: Date.now() });
     });
