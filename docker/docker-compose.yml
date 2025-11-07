@@ -1,0 +1,41 @@
+name: CLDE-Hangman
+
+services:
+  hangman-server:
+   image: hangman:v0.1
+   restart: unless-stopped
+   ports:
+    - "3000:3000"
+   environment:
+    - PORT=3000
+    - HOST=0.0.0.0
+    - NODE_ENV=production
+    - DB_HOST=hangman-mysql
+    - DB_PORT=3306
+    - DB_USER=hangman
+    - DB_PASSWORD=5alskdhf!alsoisjhsjh
+    - DB_NAME=hangman_game
+   networks:
+    - hangman
+
+
+  hangman-mysql:
+    image: mysql
+    restart: unless-stopped
+    environment:
+      - MYSQL_RANDOM_ROOT_PASSWORD=yes
+      - MYSQL_DATABASE=hangman_game
+      - MYSQL_USER=hangman
+      - MYSQL_PASSWORD=5alskdhf!alsoisjhsjh
+    networks:
+      - hangman
+    volumes:
+      - db-data:/var/lib/mysql
+      - ../server/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+
+
+networks:
+  hangman:
+
+volumes:
+  db-data:

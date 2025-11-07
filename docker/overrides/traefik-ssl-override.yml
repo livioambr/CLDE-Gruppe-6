@@ -1,0 +1,35 @@
+services:
+  hangman-proxy:
+    image: traefik:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - hangman
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=hangman"
+      - "--entryPoints.web.address=:80"
+      - "--entryPoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entryPoints.web.http.redirections.entryPoint.scheme=https"
+      - "--entryPoints.web.http.redirections.entryPoint.permanent=true"
+      - "--entryPoints.websecure.address=:443"
+
+
+  hangman-server:
+    ports:
+    environment:
+      - PORT=3000
+      - HOST=0.0.0.0
+      - NODE_ENV=production
+      - DB_HOST=hangman-mysql
+      - DB_PORT=3306
+      - DB_USER=hangman
+      - DB_PASSWORD=5alskdhf!alsoisjhsjh
+      - DB_NAME=hangman_game
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.hangman.rule=Host(`hangman.hipstertech.ch`)"
+      - "traefik.http.routers.hangman.entrypoints=websecure"
+      - "traefik.http.routers.hangman-secured.tls=true"
