@@ -213,7 +213,7 @@ function updateGameState(data) {
 
 function updateUI() {
   // Wort-Fortschritt
-  wordDisplay.textContent = gameState.wordProgress || '_ _ _ _ _';
+  wordDisplay.textContent = gameState.wordProgress || '';
 
   // Versuche übrig
   attemptsLeftDisplay.textContent = gameState.attemptsLeft;

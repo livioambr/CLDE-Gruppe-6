@@ -48,11 +48,14 @@ export function setupSocketHandlers(io) {
     });
 
     // Host verlässt Lobby → alle Spieler raus
-    socket.on('host:left', async (data) => {
+    socket.on('host:left', async (data, callback) => {
       try {
         const { lobbyId } = data;
         const lobby = await getLobby(lobbyId);
-        if (!lobby) return;
+        if (!lobby) {
+          if (callback) callback({ success: false, error: 'Lobby nicht gefunden' });
+          return;
+        }
 
         // Hole alle Spieler
         const players = lobby.players || [];
@@ -68,25 +71,34 @@ export function setupSocketHandlers(io) {
         await removePlayer(null, lobbyId); // löscht alle Spieler der Lobby
         await resetGame(lobbyId);          // optional: reset GameState
         console.log(`🗑️ Lobby ${lobbyId} geschlossen vom Host`);
+
+        if (callback) callback({ success: true });
       } catch (error) {
         console.error('Fehler bei host:left:', error);
+        if (callback) callback({ success: false, error: error.message });
       }
     });
 
+
     // Spieler verlässt Lobby (nicht Host)
-    socket.on('player:left', async (data) => {
+    socket.on('player:left', async (data, callback) => {
       try {
         const { lobbyId, playerId } = data;
         await removePlayer(playerId);
 
         socket.to(lobbyId).emit('player:left', { playerId });
-        await sendSystemMessage(lobbyId, `${currentPlayer?.name} hat die Lobby verlassen`);
+        await sendSystemMessage(lobbyId, `${currentPlayer?.name || 'Ein Spieler'} hat die Lobby verlassen`);
 
         console.log(`👋 Spieler ${playerId} hat Lobby ${lobbyId} verlassen`);
+
+        if (callback) callback({ success: true });
       } catch (error) {
         console.error('Fehler bei player:left:', error);
+        if (callback) callback({ success: false, error: error.message });
       }
     });
+
+
 
     // Spiel starten
     socket.on('game:start', async (data, callback) => {
