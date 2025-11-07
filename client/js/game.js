@@ -136,7 +136,7 @@ function setupSocketListeners() {
 
   // Spiel gestartet
   on('game:started', (data) => {
-    console.log('🎮 Spiel gestartet!', data);
+    console.log('🎮 Spiel gestartet!');
     updateGameState(data);
     startGameBtn.style.display = 'none';
     gameMessage.innerHTML = '';
@@ -144,7 +144,7 @@ function setupSocketListeners() {
 
   // Spiel aktualisiert
   on('game:updated', (data) => {
-    console.log('🔄 Spiel aktualisiert:', data);
+    console.log('🔄 Spiel aktualisiert:');
     updateGameState(data);
 
     // Zeige Feedback für letzten Zug
@@ -167,7 +167,7 @@ function setupSocketListeners() {
 
   // Spiel zurückgesetzt
   on('game:reset', (data) => {
-    console.log('🔄 Spiel zurückgesetzt:', data);
+    console.log('🔄 Spiel zurückgesetzt:');
     updateGameState(data);
     newGameBtn.style.display = 'none';
     if (gameState.isHost) {
@@ -422,6 +422,8 @@ async function handleNewGame() {
 
   try {
     await resetGameSocket(gameState.lobbyId);
+    createLetterButtons();
+    startGameBtn.disabled = false
     // Game State wird über 'game:reset' Event aktualisiert
   } catch (error) {
     console.error('Fehler beim Zurücksetzen:', error);
@@ -442,6 +444,7 @@ function handleGameEnd(data) {
   // Zeige "Neues Spiel" Button für Host
   if (gameState.isHost) {
     newGameBtn.style.display = 'block';
+    newGameBtn.disabled = false;
   }
 }
 
