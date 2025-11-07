@@ -18,17 +18,16 @@ Bevor Sie beginnen, stellen Sie sicher, dass folgende Tools installiert sind:
 
 Klonen Sie das Repository auf Ihren lokalen Rechner und wechseln Sie in das Projektverzeichnis:
 
-`bash
-git clone https://github.com/livioambr/CLDE-Gruppe-6/
-cd CLDE-Gruppe-6`
+  git clone https://github.com/livioambr/CLDE-Gruppe-6/
+  cd CLDE-Gruppe-6
 
 ## 3. Docker image build
 
-`docker build -t hangman:v0.2 -f docker/dockerfile .``
+  docker build -t hangman:v0.2 -f docker/dockerfile .
 
 ## 4. Stack starten
 
-`cd docker
-docker compose up -d``
+  cd docker
+  docker compose up -d
 
 
