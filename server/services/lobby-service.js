@@ -3,7 +3,7 @@ import { query, queryOne } from '../db/connection.js';
 
 // Generiere 6-stelligen Lobby-Code
 function generateLobbyCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Ohne ähnliche Zeichen
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
   for (let i = 0; i < 6; i++) {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -16,7 +16,7 @@ async function getRandomWord() {
   const word = await queryOne(
     'SELECT word FROM words ORDER BY RAND() LIMIT 1'
   );
-  return word ? word.word : 'HANGMAN'; // Fallback
+  return word ? word.word : 'HANGMAN';
 }
 
 // Erstelle neue Lobby
@@ -27,21 +27,18 @@ export async function createLobby(hostName, sessionId) {
   const word = await getRandomWord();
 
   try {
-    // Erstelle Lobby
     await query(
       `INSERT INTO lobbies (id, lobby_code, host_player_id, word, status, current_turn_index, attempts_left)
        VALUES (?, ?, ?, ?, 'waiting', 0, 6)`,
       [lobbyId, lobbyCode, playerId, word]
     );
 
-    // Füge Host als ersten Spieler hinzu
     await query(
       `INSERT INTO players (id, lobby_id, player_name, session_id, turn_order, is_host, is_connected)
        VALUES (?, ?, ?, ?, 0, TRUE, TRUE)`,
       [playerId, lobbyId, hostName, sessionId]
     );
 
-    // Initialisiere Game State
     await query(
       `INSERT INTO game_state (lobby_id, guessed_letters, revealed_positions, incorrect_guesses, word_progress)
        VALUES (?, '', '', '', ?)`,
@@ -74,7 +71,6 @@ export async function createLobby(hostName, sessionId) {
 // Lobby beitreten
 export async function joinLobby(lobbyCode, playerName, sessionId) {
   try {
-    // Finde Lobby
     const lobby = await queryOne(
       'SELECT * FROM lobbies WHERE lobby_code = ?',
       [lobbyCode]
@@ -88,7 +84,6 @@ export async function joinLobby(lobbyCode, playerName, sessionId) {
       return { success: false, error: 'Spiel läuft bereits' };
     }
 
-    // Zähle aktuelle Spieler
     const playerCount = await query(
       'SELECT COUNT(*) as count FROM players WHERE lobby_id = ? AND is_connected = TRUE',
       [lobby.id]
@@ -97,7 +92,6 @@ export async function joinLobby(lobbyCode, playerName, sessionId) {
     const turnOrder = playerCount[0].count;
     const playerId = uuidv4();
 
-    // Füge Spieler hinzu
     await query(
       `INSERT INTO players (id, lobby_id, player_name, session_id, turn_order, is_host, is_connected)
        VALUES (?, ?, ?, ?, ?, FALSE, TRUE)`,
@@ -139,13 +133,11 @@ export async function getLobby(lobbyId) {
       return null;
     }
 
-    // Hole alle Spieler
     const players = await query(
       'SELECT id, player_name, turn_order, is_host, is_connected FROM players WHERE lobby_id = ? ORDER BY turn_order',
       [lobbyId]
     );
 
-    // Hole Game State
     const gameState = await queryOne(
       'SELECT * FROM game_state WHERE lobby_id = ?',
       [lobbyId]
@@ -215,3 +207,22 @@ export async function getPlayerBySession(sessionId) {
     throw error;
   }
 }
+
+/* 🧹 NEU: Lobby vollständig löschen */
+export async function deleteLobby(lobbyId) {
+  try {
+    // Lösche zuerst Chat-Nachrichten (vermeidet FK-Fehler), dann Spieler, game_state und zuletzt die Lobby
+    await query('DELETE FROM chat_messages WHERE lobby_id = ?', [lobbyId]);
+    await query('DELETE FROM players WHERE lobby_id = ?', [lobbyId]);
+    await query('DELETE FROM game_state WHERE lobby_id = ?', [lobbyId]);
+    await query('DELETE FROM lobbies WHERE id = ?', [lobbyId]);
+
+    console.log(`🗑️ Lobby ${lobbyId} und zugehörige Daten gelöscht`);
+    return { success: true };
+  } catch (error) {
+    console.error('Fehler beim Löschen der Lobby:', error);
+    throw error;
+  }
+}
+
+// (Removed socket event handlers — service layer must not reference socket/io)

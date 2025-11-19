@@ -45,6 +45,17 @@ export function initSocket() {
     showError('Verbindung zum Server verloren. Bitte Seite neu laden.');
   });
 
+  if (typeof socket !== 'undefined' && socket.on) {
+    socket.on('lobby:closed', (payload) => {
+      // Optional: you can show a short message/toast before redirecting
+      try {
+        window.location.href = '/';
+      } catch (e) {
+        window.location.assign('/');
+      }
+    });
+  }
+
   return socket;
 }
 
