@@ -89,3 +89,15 @@ export async function cleanupOldMessages(daysOld = 7) {
     throw error;
   }
 }
+
+// Löscht alle Chat-Nachrichten einer Lobby.
+export async function deleteChatHistory(lobbyId) {
+  try {
+    await query('DELETE FROM chat_messages WHERE lobby_id = ?', [lobbyId]);
+    console.log(`💬 Chat-Verlauf für Lobby ${lobbyId} gelöscht`);
+    return { success: true };
+  } catch (error) {
+    console.error('Fehler beim Löschen des Chatverlaufs:', error);
+    throw error;
+  }
+}

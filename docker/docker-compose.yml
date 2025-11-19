@@ -2,7 +2,7 @@ name: CLDE-Hangman
 
 services:
   hangman-server:
-   image: hangman:v0.2
+   image: hangman:v0.3
    restart: unless-stopped
    ports:
     - "3000:3000"

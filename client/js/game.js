@@ -6,7 +6,9 @@ import {
   startGameSocket,
   guessLetterSocket,
   sendChatMessage,
-  resetGameSocket
+  resetGameSocket,
+  hostLeaveLobby,
+  playerLeaveLobby
 } from './socket-client.js';
 
 // ============================================
@@ -183,6 +185,16 @@ function setupSocketListeners() {
   });
 }
 
+// Lobby geschlossen (z. B. Host hat verlassen)
+on('lobby:closed', () => {
+  addSystemMessage('Der Host hat die Lobby verlassen. Du wirst zurück ins Menü geleitet.');
+  
+  setTimeout(() => {
+    sessionStorage.clear();
+    window.location.href = '../index.html';
+  }, 3000); // 3 Sekunden warten, um Nachricht zu sehen
+});
+
 // ============================================
 // GAME STATE MANAGEMENT
 // ============================================
@@ -201,7 +213,7 @@ function updateGameState(data) {
 
 function updateUI() {
   // Wort-Fortschritt
-  wordDisplay.textContent = gameState.wordProgress || '_ _ _ _ _';
+  wordDisplay.textContent = gameState.wordProgress || '';
 
   // Versuche übrig
   attemptsLeftDisplay.textContent = gameState.attemptsLeft;
@@ -451,10 +463,23 @@ function handleGameEnd(data) {
 function handleMenu() {
   const confirmLeave = confirm('Möchtest du die Lobby wirklich verlassen?');
   if (confirmLeave) {
-    sessionStorage.clear();
-    window.location.href = '../index.html';
+    (async () => {
+      try {
+        if (gameState.isHost) {
+          await hostLeaveLobby(gameState.lobbyId);
+        } else {
+          await playerLeaveLobby(gameState.lobbyId, gameState.playerId);
+        }
+      } catch (error) {
+        console.error('Fehler beim Verlassen der Lobby:', error);
+      } finally {
+        sessionStorage.clear();
+        window.location.href = '../index.html';
+      }
+    })();
   }
 }
+
 
 // ============================================
 // CHAT SYSTEM

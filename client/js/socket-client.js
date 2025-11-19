@@ -45,6 +45,17 @@ export function initSocket() {
     showError('Verbindung zum Server verloren. Bitte Seite neu laden.');
   });
 
+  if (typeof socket !== 'undefined' && socket.on) {
+    socket.on('lobby:closed', (payload) => {
+      // Optional: you can show a short message/toast before redirecting
+      try {
+        window.location.href = '/';
+      } catch (e) {
+        window.location.assign('/');
+      }
+    });
+  }
+
   return socket;
 }
 
@@ -113,6 +124,19 @@ export async function joinLobbySocket(lobbyId, playerId, playerName) {
     throw error;
   }
 }
+
+
+// Helper: Host verlässt Lobby
+export async function hostLeaveLobby(lobbyId) {
+  return emit('host:left', { lobbyId });
+}
+
+// Helper: Spieler verlässt Lobby
+export async function playerLeaveLobby(lobbyId, playerId) {
+  return emit('player:left', { lobbyId, playerId });
+}
+
+
 
 // Helper: Spiel starten
 export async function startGameSocket(lobbyId) {

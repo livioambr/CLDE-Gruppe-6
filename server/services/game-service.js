@@ -70,10 +70,17 @@ export async function guessLetter(lobbyId, playerId, letter) {
     // Nächster Spieler
     const playerCount = await query(
       'SELECT COUNT(*) as count FROM players WHERE lobby_id = ? AND is_connected = TRUE',
-      [lobbyId]
+     [lobbyId]
     );
     const totalPlayers = playerCount[0].count;
+
+    // Wenn kein Spieler mehr vorhanden ist (Lobby evtl. geschlossen), return
+    if (totalPlayers === 0) {
+      return { success: false, error: 'Keine Spieler in der Lobby' };
+    }
+
     const nextTurnIndex = (lobby.current_turn_index + 1) % totalPlayers;
+
 
     // Update Lobby
     await query(

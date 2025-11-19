@@ -20,7 +20,7 @@ const poolConfig = {
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 0,
-  multipleStatements: true // wichtig für CREATE DATABASE + USE + INSERT etc.
+  multipleStatements: true
 };
 
 let pool = mysql.createPool(poolConfig);
@@ -50,17 +50,20 @@ export async function initializeDatabase() {
   await connectWithRetry();
 
   const schemaPath = join(__dirname, 'schema.sql');
-  const schema = readFileSync(schemaPath, 'utf-8');
+  let schema;
+  try {
+    schema = readFileSync(schemaPath, 'utf-8');
+  } catch (err) {
+    console.error('❌ Fehler beim Lesen von schema.sql:', err.message);
+    throw err;
+  }
 
-  // temporäre Connection ohne DB, multipleStatements = true
   const connection = await mysql.createConnection({ ...poolConfig, multipleStatements: true });
 
   try {
-    // Schema auf einmal ausführen (inkl. CREATE DATABASE, USE, CREATE TABLE, INSERT)
     await connection.query(schema);
     console.log('✅ Schema erfolgreich ausgeführt');
 
-    // Pool mit DB aus .env neu erstellen
     const dbName = process.env.DB_NAME || 'hangman_game';
     await pool.end();
     pool = mysql.createPool({ ...poolConfig, database: dbName, multipleStatements: true });
@@ -68,41 +71,51 @@ export async function initializeDatabase() {
     console.log('✅ Datenbank-Initialisierung abgeschlossen');
     return true;
   } catch (err) {
-    console.error('❌ Fehler beim Ausführen des Schemas:', err.message);
-    return false;
+    console.error('❌ Fehler beim Ausführen des Schemas:', err.message, err.sqlMessage || '');
+    throw err;
   } finally {
     await connection.end();
   }
 }
 
 /**
- * Helper: Query ausführen
+ * Helper: Query ausführen mit sauberem Error-Handling
  */
 export async function query(sql, params = []) {
   try {
     const [results] = await pool.execute(sql, params);
     return results;
   } catch (error) {
-    console.error('SQL Query Fehler:', error.message);
-    throw error;
+    console.error('❌ SQL Query Fehler:', error.message, '\nQuery:', sql, '\nParams:', params);
+    throw new Error(`Datenbank-Fehler: ${error.message}`);
   }
 }
 
 /**
- * Helper: Einzelnes Ergebnis
+ * Helper: Einzelnes Ergebnis aus Query
  */
 export async function queryOne(sql, params = []) {
-  const results = await query(sql, params);
-  return results[0] || null;
+  try {
+    const results = await query(sql, params);
+    return results[0] || null;
+  } catch (error) {
+    console.error('❌ SQL QueryOne Fehler:', error.message, '\nQuery:', sql, '\nParams:', params);
+    throw error;
+  }
 }
 
 /**
  * Pool beim Beenden sauber schließen
  */
 process.on('SIGINT', async () => {
-  await pool.end();
-  console.log('MySQL Connection Pool geschlossen');
-  process.exit(0);
+  try {
+    await pool.end();
+    console.log('✅ MySQL Connection Pool geschlossen');
+  } catch (err) {
+    console.error('❌ Fehler beim Schließen des Pools:', err.message);
+  } finally {
+    process.exit(0);
+  }
 });
 
 export default pool;

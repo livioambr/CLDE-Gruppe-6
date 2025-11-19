@@ -15,12 +15,12 @@ createSessionBtn.addEventListener('click', async () => {
   const playerName = playerNameInput.value.trim();
 
   if (!playerName) {
-    showMessage('Bitte gib einen Spielernamen ein.', 'error');
+    showMessage('Bitte gib einen Spielernamen ein.', 'error',5000);
     return;
   }
 
   if (playerName.length < 2) {
-    showMessage('Spielername muss mindestens 2 Zeichen lang sein.', 'error');
+    showMessage('Spielername muss mindestens 2 Zeichen lang sein.', 'error',5000);
     return;
   }
 
@@ -53,7 +53,7 @@ createSessionBtn.addEventListener('click', async () => {
         window.location.href = 'game.html';
       }, 1500);
     } else {
-      showMessage(data.error || 'Fehler beim Erstellen der Session', 'error');
+      showMessage(data.error || 'Fehler beim Erstellen der Session', 'error',5000);
     }
   } catch (error) {
     console.error('Fehler beim Erstellen:', error);
@@ -69,17 +69,17 @@ joinSessionBtn.addEventListener('click', async () => {
   const lobbyCode = sessionCodeInput.value.trim().toUpperCase();
 
   if (!playerName) {
-    showMessage('Bitte gib einen Spielernamen ein.', 'error');
+    showMessage('Bitte gib einen Spielernamen ein.', 'error',5000);
     return;
   }
 
   if (playerName.length < 2) {
-    showMessage('Spielername muss mindestens 2 Zeichen lang sein.', 'error');
+    showMessage('Spielername muss mindestens 2 Zeichen lang sein.', 'error',5000);
     return;
   }
 
   if (!lobbyCode || lobbyCode.length !== 6) {
-    showMessage('Bitte gib einen gültigen 6-stelligen Code ein.', 'error');
+    showMessage('Bitte gib einen gültigen 6-stelligen Code ein.', 'error',5000);
     return;
   }
 
@@ -112,7 +112,7 @@ joinSessionBtn.addEventListener('click', async () => {
         window.location.href = 'game.html';
       }, 1500);
     } else {
-      showMessage(data.error || 'Fehler beim Beitreten', 'error');
+      showMessage(data.error || 'Fehler beim Beitreten', 'error',5000);
     }
   } catch (error) {
     console.error('Fehler beim Beitreten:', error);
@@ -123,18 +123,19 @@ joinSessionBtn.addEventListener('click', async () => {
 });
 
 // Helper: Nachricht anzeigen
-function showMessage(msg, type = 'info') {
+function showMessage(msg, type = 'info', timeout = null) {
   lobbyMessage.textContent = msg;
   lobbyMessage.className = `message ${type}`;
   lobbyMessage.style.display = 'block';
 
-  // Nach 5 Sekunden ausblenden (außer bei success)
-  if (type !== 'success') {
+  // Wenn ein Timeout angegeben ist (z. B. 5000 ms), nach Ablauf ausblenden
+  if (timeout !== null) {
     setTimeout(() => {
       lobbyMessage.style.display = 'none';
-    }, 5000);
+    }, timeout);
   }
 }
+
 
 // Helper: Loading-Zustand
 function setLoading(isLoading) {
