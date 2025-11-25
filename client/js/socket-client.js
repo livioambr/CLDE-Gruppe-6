@@ -1,4 +1,4 @@
-// Socket.io Client für Hangman Multiplayer
+  // Socket.io Client für Hangman Multiplayer
 // Exportiert Socket-Instanz und Helper-Funktionen
 
 const SERVER_URL = window.location.origin; // Verwendet automatisch die aktuelle URL
@@ -44,17 +44,6 @@ export function initSocket() {
     console.error('❌ Reconnect fehlgeschlagen');
     showError('Verbindung zum Server verloren. Bitte Seite neu laden.');
   });
-
-  if (typeof socket !== 'undefined' && socket.on) {
-    socket.on('lobby:closed', (payload) => {
-      // Optional: you can show a short message/toast before redirecting
-      try {
-        window.location.href = '/';
-      } catch (e) {
-        window.location.assign('/');
-      }
-    });
-  }
 
   return socket;
 }

@@ -34,10 +34,14 @@ export function setupSocketHandlers(io) {
         const chatHistory = await getChatHistory(lobbyId);
         await sendSystemMessage(lobbyId, `${playerName} ist beigetreten`);
 
+        // Hole aktualisierte Spielerliste
+        const updatedLobby = await getLobby(lobbyId);
+
         socket.to(lobbyId).emit('player:joined', {
           playerId,
           playerName,
-          playerCount: lobby.players.length
+          playerCount: updatedLobby.players.length,
+          players: updatedLobby.players // Fix: Sende komplette Spielerliste
         });
 
         callback({ success: true, lobby, chatHistory });

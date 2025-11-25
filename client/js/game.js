@@ -106,6 +106,7 @@ async function init() {
   } catch (error) {
     console.error('❌ Fehler beim Beitreten:', error);
     alert('Fehler beim Beitreten der Lobby: ' + error);
+    sessionStorage.clear(); // Fix: Session löschen, wenn Beitritt fehlschlägt (z.B. Lobby existiert nicht mehr)
     window.location.href = 'lobby.html';
   }
 
@@ -127,13 +128,24 @@ function setupSocketListeners() {
   on('player:joined', (data) => {
     console.log('👤 Neuer Spieler:', data.playerName);
     addSystemMessage(`${data.playerName} ist beigetreten`);
-    // Game State wird automatisch über game:updated aktualisiert
+
+    // Fix: Aktualisiere Spielerliste sofort
+    if (data.players) {
+      gameState.players = data.players;
+      updatePlayersList();
+    }
   });
 
   // Spieler left
   on('player:left', (data) => {
     console.log('👋 Spieler verlassen:', data.playerName);
-    addSystemMessage(`${data.playerName} hat die Lobby verlassen`);
+    addSystemMessage(`${data.playerName || 'Ein Spieler'} hat die Lobby verlassen`);
+
+    // Fix: Entferne Spieler aus der Liste und aktualisiere UI
+    if (data.playerId) {
+      gameState.players = gameState.players.filter(p => p.id !== data.playerId);
+      updatePlayersList();
+    }
   });
 
   // Spiel gestartet
@@ -187,10 +199,12 @@ function setupSocketListeners() {
 
 // Lobby geschlossen (z. B. Host hat verlassen)
 on('lobby:closed', () => {
+  // Fix: Session sofort löschen, damit kein Rejoin-Versuch möglich ist
+  sessionStorage.clear();
+
   addSystemMessage('Der Host hat die Lobby verlassen. Du wirst zurück ins Menü geleitet.');
-  
+
   setTimeout(() => {
-    sessionStorage.clear();
     window.location.href = '../index.html';
   }, 3000); // 3 Sekunden warten, um Nachricht zu sehen
 });
@@ -512,7 +526,7 @@ function addChatMessage(playerName, message, type = 'player') {
   } else {
     const now = new Date();
     const timeStr = now.getHours().toString().padStart(2, '0') + ':' +
-                    now.getMinutes().toString().padStart(2, '0');
+      now.getMinutes().toString().padStart(2, '0');
 
     messageDiv.innerHTML = `
       <div class="message-header">
