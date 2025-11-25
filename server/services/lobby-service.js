@@ -84,6 +84,16 @@ export async function joinLobby(lobbyCode, playerName, sessionId) {
       return { success: false, error: 'Spiel läuft bereits' };
     }
 
+    // Fix: Prüfe ob Spielername bereits in der Lobby existiert
+    const existingPlayer = await queryOne(
+      'SELECT * FROM players WHERE lobby_id = ? AND player_name = ? AND is_connected = TRUE',
+      [lobby.id, playerName]
+    );
+
+    if (existingPlayer) {
+      return { success: false, error: 'Name bereits in Verwendung. Bitte wähle einen anderen Namen.' };
+    }
+
     const playerCount = await query(
       'SELECT COUNT(*) as count FROM players WHERE lobby_id = ? AND is_connected = TRUE',
       [lobby.id]
