@@ -26,7 +26,9 @@ cd CLDE-Gruppe-6
 ## 3. Docker image build
 
 ```
-docker build -t hangman:v0.2 -f docker/dockerfile .
+docker build -t hangman-backend:v0.4 -f docker/backend/dockerfile .
+
+docker build -t hangman-frontend:v0.4 -f docker/frontend/dockerfile .
 ```
 
 ## 4. Stack starten
