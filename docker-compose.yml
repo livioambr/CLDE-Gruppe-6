@@ -1,12 +1,25 @@
 name: CLDE-Hangman
 
 services:
+  hangman-frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend/dockerfile
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    networks:
+      - hangman
+    depends_on:
+      - hangman-server
   hangman-server:
-   image: hangman:v0.3
-   restart: unless-stopped
-   ports:
+    build:
+      context: .
+      dockerfile: docker/backend/dockerfile
+    restart: unless-stopped
+    ports:
     - "3000:3000"
-   environment:
+    environment:
     - PORT=3000
     - HOST=0.0.0.0
     - NODE_ENV=production
@@ -15,9 +28,10 @@ services:
     - DB_USER=hangman
     - DB_PASSWORD=${DB_PW}
     - DB_NAME=hangman_game
-   networks:
+    networks:
     - hangman
-
+    depends_on:
+      - hangman-mysql
 
   hangman-mysql:
     image: mysql
