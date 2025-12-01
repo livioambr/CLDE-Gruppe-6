@@ -23,6 +23,7 @@ services:
     - PORT=3000
     - HOST=0.0.0.0
     - NODE_ENV=production
+    - FRONTEND_ORIGIN=https://hangman.hipstertech.ch
     - DB_HOST=hangman-mysql
     - DB_PORT=3306
     - DB_USER=hangman

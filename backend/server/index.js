@@ -17,7 +17,7 @@ import { initializeDatabase } from './db/connection.js';
 const app = express();
 
 const PORT = process.env.PORT || 3000;
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:8080';
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'https://hangman.hipstertech.ch';
 
 app.use(cors({
   origin: FRONTEND_ORIGIN,

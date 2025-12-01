@@ -1,8 +1,8 @@
 FROM node:lts-alpine
 
-COPY server/ server/
-COPY package-lock.json package-lock.json
-COPY package.json package.json
+COPY backend/server/ server/
+COPY backend/package-lock.json package-lock.json
+COPY backend/package.json package.json
 
 RUN npm install
 
