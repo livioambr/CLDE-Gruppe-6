@@ -3,11 +3,8 @@ import http from 'http';
 import { Server as IOServer } from 'socket.io';
 import cors from 'cors';
 import sessionRouter from './routes/session.js';
+import lobbyRouter from './routes/lobby.js'; // <-- neu
 import { setupSocketHandlers } from './socket-handler.js';
-
-// ES Module __dirname workaround
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 // Lade Umgebungsvariablen
 import dotenv from 'dotenv';
@@ -16,10 +13,7 @@ dotenv.config();
 // DB Verbindung
 import { initializeDatabase } from './db/connection.js';
 
-// ES Module __dirname workaround
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
+// Entfernte __dirname/Path-Logik - Frontend wird separat gehostet
 const app = express();
 
 const PORT = process.env.PORT || 3000;
@@ -36,6 +30,9 @@ app.use(express.urlencoded({ extended: true }));
 // API route to clear HttpOnly session cookie (if present)
 app.use('/api/session', sessionRouter);
 
+// mount lobby routes
+app.use('/api/lobby', lobbyRouter); // <-- neu
+
 // Health Check
 app.get('/api/health', (req, res) => {
   res.json({
@@ -45,12 +42,15 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Fallback für SPA - Express 5.x kompatibel
+// Do NOT serve frontend from this backend. Frontend is a separate static site.
+// Return explicit 404 for non-API routes so clients know to use the static frontend host.
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'API Endpoint nicht gefunden' });
   }
-  res.sendFile(path.join(__dirname, '../client/index.html'));
+  return res.status(404).json({
+    error: 'Not Found. Frontend is served separately. Configure FRONTEND_ORIGIN to your frontend URL.'
+  });
 });
 
 const server = http.createServer(app);
@@ -88,15 +88,14 @@ async function startServer() {
     server.listen(PORT, () => {
       console.log('\n✅ Server erfolgreich gestartet!');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log(`🌐 Server läuft auf: ${FRONTEND_ORIGIN}`);
       console.log(`📍 Lokal erreichbar: http://localhost:${PORT}`);
       console.log(`🔌 Socket.io:        ws://localhost:${PORT}`);
       console.log(`💾 Datenbank:        ${process.env.DB_HOST || 'localhost'}`);
-      console.log(`📁 Frontend:         ${path.join(__dirname, '../client')}`);
+      console.log(`🌐 Allowed frontend origin: ${FRONTEND_ORIGIN}`);
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
       console.log('💡 Bereit für Verbindungen!\n');
       if (process.env.NODE_ENV === 'production') {
-        console.log('⚠️  Production Mode: Nutze EC2 Public IP oder Domain für externe Verbindungen\n');
+        console.log('⚠️  Production Mode: Nutze die konfigurierte FRONTEND_ORIGIN für externe Verbindungen\n');
       }
     });
   } catch (error) {

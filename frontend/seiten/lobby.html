@@ -4,8 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hangman Lobby</title>
-  <link rel="stylesheet" href="../css/styles.css">
-  <link rel="stylesheet" href="../css/lobby.css">
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/lobby.css">
+
+  <!-- runtime backend URL (set at deploy time) -->
+  <script>
+    window.SERVER_URL = window.SERVER_URL || 'http://localhost:3000';
+  </script>
 </head>
 <body>
   <div class="lobby-container">
@@ -66,6 +71,6 @@
     </div>
   </div>
 
-  <script type="module" src="../js/lobby.js"></script>
+  <script type="module" src="/js/lobby.js"></script>
 </body>
 </html>

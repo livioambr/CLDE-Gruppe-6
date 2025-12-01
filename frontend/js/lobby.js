@@ -1,6 +1,7 @@
 // Lobby System - REST API Integration
 
-const API_BASE = window.location.origin + '/api';
+// Use runtime-configurable SERVER_URL (set in index.html) and build API base
+const API_BASE = (window.SERVER_URL ? window.SERVER_URL : window.location.origin) + '/api';
 
 // DOM Elemente
 const playerNameInput = document.getElementById('playerName');
@@ -29,6 +30,7 @@ createSessionBtn.addEventListener('click', async () => {
   try {
     const response = await fetch(`${API_BASE}/lobby/create`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json'
       },
@@ -88,6 +90,7 @@ joinSessionBtn.addEventListener('click', async () => {
   try {
     const response = await fetch(`${API_BASE}/lobby/join`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json'
       },

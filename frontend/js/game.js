@@ -9,7 +9,7 @@ import {
   resetGameSocket,
   hostLeaveLobby,
   playerLeaveLobby
-} from '../../client/js/socket-client.js';
+} from '../../js/socket-client.js';
 
 // ============================================
 // GLOBALE VARIABLEN
