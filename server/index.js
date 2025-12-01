@@ -1,46 +1,40 @@
 import express from 'express';
-import { createServer } from 'http';
-import { Server } from 'socket.io';
+import http from 'http';
+import { Server as IOServer } from 'socket.io';
 import cors from 'cors';
-import dotenv from 'dotenv';
+import sessionRouter from './routes/session.js';
+import { setupSocketHandlers } from './socket-handler.js';
+
+// ES Module __dirname workaround
 import path from 'path';
 import { fileURLToPath } from 'url';
+
+// Lade Umgebungsvariablen
+import dotenv from 'dotenv';
+dotenv.config();
+
+// DB Verbindung
 import { initializeDatabase } from './db/connection.js';
-import { setupSocketHandlers } from './socket-handler.js';
-import lobbyRoutes from './routes/lobby.js';
 
 // ES Module __dirname workaround
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Lade Umgebungsvariablen
-dotenv.config();
-
 const app = express();
-const httpServer = createServer(app);
-const io = new Server(httpServer, {
-  cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
-    methods: ['GET', 'POST'],
-    credentials: true
-  }
-});
 
-const PORT = process.env.PORT || 80;
+const PORT = process.env.PORT || 3000;
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:8080';
 
-// Middleware
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: FRONTEND_ORIGIN,
   credentials: true
 }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Statische Dateien (Frontend)
-app.use(express.static(path.join(__dirname, '../client')));
-
-// API Routes
-app.use('/api/lobby', lobbyRoutes);
+// API route to clear HttpOnly session cookie (if present)
+app.use('/api/session', sessionRouter);
 
 // Health Check
 app.get('/api/health', (req, res) => {
@@ -57,6 +51,16 @@ app.use((req, res, next) => {
     return res.status(404).json({ error: 'API Endpoint nicht gefunden' });
   }
   res.sendFile(path.join(__dirname, '../client/index.html'));
+});
+
+const server = http.createServer(app);
+
+const io = new IOServer(server, {
+  cors: {
+    origin: FRONTEND_ORIGIN,
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
 });
 
 // Socket.io Setup
@@ -81,13 +85,10 @@ async function startServer() {
       process.exit(1);
     }
 
-    // Starte HTTP Server
-    // Bind to 0.0.0.0 to accept connections from any network interface (AWS EC2 compatibility)
-    const HOST = process.env.HOST || '0.0.0.0';
-    httpServer.listen(PORT, HOST, () => {
+    server.listen(PORT, () => {
       console.log('\n✅ Server erfolgreich gestartet!');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log(`🌐 Server läuft auf: ${HOST}:${PORT}`);
+      console.log(`🌐 Server läuft auf: ${FRONTEND_ORIGIN}`);
       console.log(`📍 Lokal erreichbar: http://localhost:${PORT}`);
       console.log(`🔌 Socket.io:        ws://localhost:${PORT}`);
       console.log(`💾 Datenbank:        ${process.env.DB_HOST || 'localhost'}`);
@@ -107,7 +108,7 @@ async function startServer() {
 // Graceful Shutdown
 process.on('SIGTERM', () => {
   console.log('\n⚠️  SIGTERM empfangen. Server wird heruntergefahren...');
-  httpServer.close(() => {
+  server.close(() => {
     console.log('✅ Server geschlossen');
     process.exit(0);
   });
@@ -115,7 +116,7 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   console.log('\n⚠️  SIGINT empfangen. Server wird heruntergefahren...');
-  httpServer.close(() => {
+  server.close(() => {
     console.log('✅ Server geschlossen');
     process.exit(0);
   });

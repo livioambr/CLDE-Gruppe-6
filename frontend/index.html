@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Hangman - Frontend</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <!-- Set backend URL at deploy time; default to localhost:3000 -->
+  <script>
+    window.SERVER_URL = window.SERVER_URL || 'http://localhost:3000';
+  </script>
+</head>
+<body>
+  <h1>Hangman Frontend</h1>
+  <nav>
+    <a href="/seiten/lobby.html">Lobby</a>
+    <a href="/seiten/game.html">Spiel</a>
+  </nav>
+
+  <!-- your static site serves the files under / (js/, css/, seiten/) -->
+  <script type="module" src="/js/socket-client.js"></script>
+</body>
+</html>

@@ -10,7 +10,9 @@ import {
 import { guessLetter, getGameState, resetGame } from './services/game-service.js';
 import { sendMessage, getChatHistory, sendSystemMessage } from './services/chat-service.js';
 
-// Socket.io Event Handler
+// In-memory marker for lobbies being closed (prevents race condition with DB writes)
+const closingLobbies = new Set();
+
 export function setupSocketHandlers(io) {
   io.on('connection', (socket) => {
     console.log(`🔌 Client verbunden: ${socket.id}`);
@@ -24,31 +26,38 @@ export function setupSocketHandlers(io) {
         const { lobbyId, playerId, playerName } = data;
 
         const lobby = await getLobby(lobbyId);
-        if (!lobby) return callback({ success: false, error: 'Lobby nicht gefunden' });
+        if (!lobby) {
+          return callback({ success: false, error: 'Lobby nicht gefunden' });
+        }
 
         currentPlayer = { id: playerId, name: playerName, lobbyId };
         currentLobby = lobbyId;
 
+        // Ensure the socket joins the room immediately so room emits reach it
         socket.join(lobbyId);
+        console.log(`ℹ️ Socket ${socket.id} joined room ${lobbyId}`);
 
         const chatHistory = await getChatHistory(lobbyId);
-        await sendSystemMessage(lobbyId, `${playerName} ist beigetreten`);
 
-        // Hole aktualisierte Spielerliste
+        // Best-effort: persist system join message unless lobby is closing
+        if (!closingLobbies.has(lobbyId)) {
+          try { await sendSystemMessage(lobbyId, `${playerName} ist beigetreten`); } catch (e) { console.warn(e); }
+        }
+
+        // Get updated players list and emit to room
         const updatedLobby = await getLobby(lobbyId);
-
         socket.to(lobbyId).emit('player:joined', {
           playerId,
           playerName,
-          playerCount: updatedLobby.players.length,
-          players: updatedLobby.players // Fix: Sende komplette Spielerliste
+          playerCount: updatedLobby.players?.length || 0,
+          players: updatedLobby.players || []
         });
 
-        callback({ success: true, lobby, chatHistory });
-        console.log(`✅ ${playerName} trat Lobby ${lobby.code} bei`);
+        if (callback) callback({ success: true, lobby, chatHistory });
+        console.log(`✅ ${playerName} trat Lobby ${lobby.lobby_code || lobbyId} bei`);
       } catch (error) {
         console.error('Fehler bei player:join:', error);
-        callback({ success: false, error: error.message });
+        if (callback) callback({ success: false, error: error.message });
       }
     });
 
@@ -62,67 +71,71 @@ export function setupSocketHandlers(io) {
           return;
         }
 
-        // Informiere alle Clients in der Lobby-Room (sicher, weil sockets join(lobbyId) nutzen)
-        io.to(lobbyId).emit('lobby:closed');
+        closingLobbies.add(lobbyId);
 
-        // Sende System-Nachricht bevor die DB-Zeilen gelöscht werden (vermeidet FK-Fehler)
+        console.log(`ℹ️ Emitting 'lobby:closed' for lobby ${lobbyId} (host-left)`);
+        io.to(lobbyId).emit('lobby:closed', { reason: 'host-left' });
+
         try {
-          await sendSystemMessage(lobbyId, `🗑️ Lobby ${lobby.code} wurde gelöscht (Host hat verlassen)`);
+          await sendSystemMessage(lobbyId, `🗑️ Lobby ${lobby.lobby_code || lobbyId} wurde gelöscht (Host hat verlassen)`);
         } catch (err) {
-          console.error('Warnung: System-Nachricht konnte nicht gespeichert werden:', err);
-          // Weiterfahren – löschen trotzdem ausführen
+          console.warn('Warnung: System-Nachricht konnte nicht gespeichert werden:', err);
         }
 
-        // Alle Spieler & Game-State löschen (deleteLobby löscht abhängige Tabellen)
         await deleteLobby(lobbyId);
+        closingLobbies.delete(lobbyId);
 
         console.log(`🗑️ Lobby ${lobbyId} gelöscht, da Host sie verlassen hat`);
-
         if (callback) callback({ success: true });
       } catch (error) {
         console.error('Fehler bei host:left:', error);
+        if (data && data.lobbyId) closingLobbies.delete(data.lobbyId);
         if (callback) callback({ success: false, error: error.message });
       }
     });
 
-
-
     // Spieler verlässt Lobby (nicht Host)
     socket.on('player:left', async (data, callback) => {
       try {
-        const { lobbyId, playerId } = data;
+        const { lobbyId, playerId, playerName } = data;
+
+        if (closingLobbies.has(lobbyId)) {
+          // still notify clients, but skip DB writes
+          socket.to(lobbyId).emit('player:left', { playerId, playerName });
+          if (callback) callback({ success: true });
+          console.log(`ℹ️ Skipping DB update for player:left because lobby ${lobbyId} is closing`);
+          return;
+        }
+
         await removePlayer(playerId);
+        socket.to(lobbyId).emit('player:left', { playerId, playerName });
 
-        socket.to(lobbyId).emit('player:left', { playerId });
-        await sendSystemMessage(lobbyId, `${currentPlayer?.name || 'Ein Spieler'} hat die Lobby verlassen`);
-
-        console.log(`👋 Spieler ${playerId} hat Lobby ${lobbyId} verlassen`);
+        try { await sendSystemMessage(lobbyId, `${playerName || 'Ein Spieler'} hat die Lobby verlassen`); } catch (e) { console.warn(e); }
 
         if (callback) callback({ success: true });
+        console.log(`👋 Spieler ${playerId} hat Lobby ${lobbyId} verlassen`);
       } catch (error) {
         console.error('Fehler bei player:left:', error);
         if (callback) callback({ success: false, error: error.message });
       }
     });
 
-
-
     // Spiel starten
     socket.on('game:start', async (data, callback) => {
       try {
         const { lobbyId } = data;
+        if (closingLobbies.has(lobbyId)) return callback({ success: false, error: 'Lobby wird geschlossen' });
 
         await startGame(lobbyId);
         const gameState = await getGameState(lobbyId);
 
         io.to(lobbyId).emit('game:started', gameState);
-        await sendSystemMessage(lobbyId, 'Spiel gestartet!');
+        if (!closingLobbies.has(lobbyId)) await sendSystemMessage(lobbyId, 'Spiel gestartet!');
 
-        callback({ success: true, gameState });
-        console.log(`🎮 Spiel in Lobby ${lobbyId} gestartet`);
+        if (callback) callback({ success: true, gameState });
       } catch (error) {
         console.error('Fehler bei game:start:', error);
-        callback({ success: false, error: error.message });
+        if (callback) callback({ success: false, error: error.message });
       }
     });
 
@@ -130,6 +143,7 @@ export function setupSocketHandlers(io) {
     socket.on('game:guess', async (data, callback) => {
       try {
         const { lobbyId, playerId, letter } = data;
+        if (closingLobbies.has(lobbyId)) return callback({ success: false, error: 'Lobby wird geschlossen' });
 
         const result = await guessLetter(lobbyId, playerId, letter);
         if (!result.success) return callback(result);
@@ -140,33 +154,15 @@ export function setupSocketHandlers(io) {
           lastGuess: { playerId, letter, isCorrect: result.isCorrect }
         });
 
-        if (result.hasWon) await sendSystemMessage(lobbyId, '🎉 Glückwunsch! Das Wort wurde erraten!');
-        else if (result.hasLost) await sendSystemMessage(lobbyId, `😢 Verloren! Das Wort war: ${result.word}`);
+        if (!closingLobbies.has(lobbyId)) {
+          if (result.hasWon) await sendSystemMessage(lobbyId, '🎉 Glückwunsch! Das Wort wurde erraten!');
+          else if (result.hasLost) await sendSystemMessage(lobbyId, `😢 Verloren! Das Wort war: ${result.word}`);
+        }
 
-        callback({ success: true, result, gameState });
-        console.log(`🎲 Buchstabe "${letter}" geraten - ${result.isCorrect ? '✅' : '❌'}`);
+        if (callback) callback({ success: true, result, gameState });
       } catch (error) {
         console.error('Fehler bei game:guess:', error);
-        callback({ success: false, error: error.message });
-      }
-    });
-
-    // Spiel zurücksetzen
-    socket.on('game:reset', async (data, callback) => {
-      try {
-        const { lobbyId } = data;
-
-        await resetGame(lobbyId);
-        const gameState = await getGameState(lobbyId);
-
-        io.to(lobbyId).emit('game:reset', gameState);
-        await sendSystemMessage(lobbyId, '🔄 Neues Spiel gestartet!');
-
-        callback({ success: true, gameState });
-        console.log(`🔄 Spiel in Lobby ${lobbyId} zurückgesetzt`);
-      } catch (error) {
-        console.error('Fehler bei game:reset:', error);
-        callback({ success: false, error: error.message });
+        if (callback) callback({ success: false, error: error.message });
       }
     });
 
@@ -176,10 +172,7 @@ export function setupSocketHandlers(io) {
 
       if (currentPlayer && currentLobby) {
         try {
-          // Hole Lobby, um zu prüfen ob der disconnectende Spieler der Host ist
           const lobby = await getLobby(currentLobby);
-
-          // Wenn Lobby bereits gelöscht wurde (z.B. Host hat sie entfernt), NICHTS an der DB ändern
           if (!lobby) {
             console.log(`ℹ️ Lobby ${currentLobby} bereits entfernt — DB-Updates übersprungen für Spieler ${currentPlayer.id}`);
             return;
@@ -193,33 +186,32 @@ export function setupSocketHandlers(io) {
           );
 
           if (isHost) {
-            // Wenn Host disconnectet → Lobby schließen: zuerst die Clients informieren, dann DB löschen
+            closingLobbies.add(currentLobby);
+            console.log(`ℹ️ Emitting 'lobby:closed' for lobby ${currentLobby} (host-disconnect, host=${currentPlayer.id})`);
             io.to(currentLobby).emit('lobby:closed', { reason: 'host-disconnect' });
 
             try {
-              await sendSystemMessage(currentLobby, `🗑️ Lobby ${lobby.code} wurde gelöscht (Host hat die Verbindung verloren)`);
+              await sendSystemMessage(currentLobby, `🗑️ Lobby ${lobby.lobby_code || currentLobby} wurde gelöscht (Host hat die Verbindung verloren)`);
             } catch (err) {
               console.warn('Warnung: System-Nachricht konnte nicht gespeichert werden:', err);
-              // Weiterfahren – löschen trotzdem ausführen
             }
 
             await deleteLobby(currentLobby);
+            closingLobbies.delete(currentLobby);
             console.log(`🗑️ Lobby ${currentLobby} gelöscht, da Host die Verbindung verloren hat`);
           } else {
-            // Nicht-Host: Markiere Spieler als disconnected und informiere andere Spieler
-            await removePlayer(currentPlayer.id);
+            if (closingLobbies.has(currentLobby)) {
+              console.log(`ℹ️ Skipping disconnect DB updates for player ${currentPlayer.id} because lobby is closing`);
+              return;
+            }
 
+            await removePlayer(currentPlayer.id);
             socket.to(currentLobby).emit('player:left', {
               playerId: currentPlayer.id,
               playerName: currentPlayer.name
             });
 
-            // Nur System-Chat-Nachricht senden, wenn Lobby noch existiert und es kein Host-Fall ist
-            try {
-              await sendSystemMessage(currentLobby, `${currentPlayer.name} hat die Lobby verlassen`);
-            } catch (err) {
-              console.warn('Warnung: System-Nachricht konnte nicht gespeichert werden:', err);
-            }
+            try { await sendSystemMessage(currentLobby, `${currentPlayer.name} hat die Lobby verlassen`); } catch (err) { console.warn(err); }
 
             console.log(`👋 ${currentPlayer.name} hat Lobby verlassen`);
           }
@@ -229,7 +221,7 @@ export function setupSocketHandlers(io) {
       }
     });
 
-    // Ping-Pong
+    // ping
     socket.on('ping', (callback) => {
       callback({ pong: true, timestamp: Date.now() });
     });
