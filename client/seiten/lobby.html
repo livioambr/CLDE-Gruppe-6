@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
   <link rel="stylesheet" href="../css/styles.css">
   <link rel="stylesheet" href="../css/lobby.css">
 </head>
+
 <body>
   <div class="lobby-container">
     <h1>🎮 Hangman Lobby</h1>
@@ -15,14 +17,7 @@
     <!-- Spielername -->
     <div class="input-group">
       <label for="playerName">Dein Spielername</label>
-      <input
-        type="text"
-        id="playerName"
-        placeholder="z.B. Spieler123"
-        maxlength="20"
-        required
-        autocomplete="off"
-      />
+      <input type="text" id="playerName" placeholder="z.B. Spieler123" maxlength="20" required autocomplete="off" />
     </div>
 
     <!-- Session erstellen -->
@@ -37,14 +32,8 @@
     <!-- Session beitreten -->
     <div class="input-group">
       <label for="sessionCode">Session-Code</label>
-      <input
-        type="text"
-        id="sessionCode"
-        placeholder="z.B. ABC123"
-        maxlength="6"
-        style="text-transform: uppercase;"
-        autocomplete="off"
-      />
+      <input type="text" id="sessionCode" placeholder="z.B. ABC123" maxlength="6" style="text-transform: uppercase;"
+        autocomplete="off" />
     </div>
 
     <button class="btn btn-secondary" id="joinSessionBtn">
@@ -68,4 +57,5 @@
 
   <script type="module" src="../js/lobby.js"></script>
 </body>
+
 </html>

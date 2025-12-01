@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
   <link rel="stylesheet" href="../css/game.css">
   <link rel="stylesheet" href="../css/mobile.css">
 </head>
+
 <body>
   <!-- Header -->
   <div class="game-header">
@@ -15,6 +17,7 @@
       HANGMAN
     </h1>
     <div class="lobby-info">
+      <div class="player-display" id="myPlayerNameDisplay"></div>
       <div class="lobby-code" id="lobbyCodeDisplay">CODE: ------</div>
       <button class="menu-btn" id="menuBtn">Spiel verlassen</button>
     </div>
@@ -34,6 +37,14 @@
       <div class="attempts-display">
         <h3>Versuche übrig:</h3>
         <div class="attempts-number" id="attemptsLeft">6</div>
+      </div>
+
+      <!-- Spieler-Liste (Verschoben) -->
+      <div class="player-list-section">
+        <h3>Spieler</h3>
+        <div id="playersList" class="player-list-scroll">
+          <!-- Spieler werden dynamisch hinzugefügt -->
+        </div>
       </div>
     </div>
 
@@ -59,6 +70,34 @@
       <!-- Game Message -->
       <div id="gameMessage"></div>
 
+      <!-- Difficulty Selector (Host only) -->
+      <div class="difficulty-selector" id="difficultySelector" style="display: none;">
+        <h3>Schwierigkeitsgrad wählen:</h3>
+        <div class="difficulty-options">
+          <label class="difficulty-option">
+            <input type="radio" name="difficulty" value="12" checked>
+            <span class="difficulty-label">
+              <strong>Leicht</strong>
+              <small>12 Versuche</small>
+            </span>
+          </label>
+          <label class="difficulty-option">
+            <input type="radio" name="difficulty" value="8">
+            <span class="difficulty-label">
+              <strong>Mittel</strong>
+              <small>8 Versuche</small>
+            </span>
+          </label>
+          <label class="difficulty-option">
+            <input type="radio" name="difficulty" value="4">
+            <span class="difficulty-label">
+              <strong>Schwer</strong>
+              <small>4 Versuche</small>
+            </span>
+          </label>
+        </div>
+      </div>
+
       <!-- Controls -->
       <div class="game-controls">
         <button class="btn btn-primary" id="startGameBtn" style="display: none;">Spiel starten</button>
@@ -73,13 +112,7 @@
         <h2>💬 Live Chat</h2>
       </div>
 
-      <!-- Spieler-Liste -->
-      <div class="player-list">
-        <h3>Spieler</h3>
-        <div id="playersList">
-          <!-- Spieler werden dynamisch hinzugefügt -->
-        </div>
-      </div>
+
 
       <!-- Chat Messages -->
       <div class="chat-messages" id="chatMessages">
@@ -91,14 +124,8 @@
       <!-- Chat Input -->
       <div class="chat-input-container">
         <form class="chat-input-form" id="chatForm">
-          <input
-            type="text"
-            class="chat-input"
-            id="chatInput"
-            placeholder="Nachricht eingeben..."
-            autocomplete="off"
-            maxlength="200"
-          />
+          <input type="text" class="chat-input" id="chatInput" placeholder="Nachricht eingeben..." autocomplete="off"
+            maxlength="200" />
           <button type="submit" class="chat-send-btn">➤</button>
         </form>
       </div>
@@ -113,4 +140,5 @@
   <script type="module" src="../js/socket-client.js"></script>
   <script type="module" src="../js/game.js"></script>
 </body>
+
 </html>

@@ -1,4 +1,4 @@
-  // Socket.io Client für Hangman Multiplayer
+// Socket.io Client für Hangman Multiplayer
 // Exportiert Socket-Instanz und Helper-Funktionen
 
 const SERVER_URL = window.location.origin; // Verwendet automatisch die aktuelle URL
@@ -128,9 +128,9 @@ export async function playerLeaveLobby(lobbyId, playerId) {
 
 
 // Helper: Spiel starten
-export async function startGameSocket(lobbyId) {
+export async function startGameSocket(lobbyId, maxAttempts = 8) {
   try {
-    const response = await emit('game:start', { lobbyId });
+    const response = await emit('game:start', { lobbyId, maxAttempts });
     console.log('Spiel gestartet:', response);
     return response;
   } catch (error) {

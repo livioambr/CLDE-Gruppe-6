@@ -110,9 +110,9 @@ export function setupSocketHandlers(io) {
     // Spiel starten
     socket.on('game:start', async (data, callback) => {
       try {
-        const { lobbyId } = data;
+        const { lobbyId, maxAttempts = 8 } = data;
 
-        await startGame(lobbyId);
+        await startGame(lobbyId, maxAttempts);
         const gameState = await getGameState(lobbyId);
 
         io.to(lobbyId).emit('game:started', gameState);
