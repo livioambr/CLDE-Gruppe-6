@@ -28,8 +28,8 @@ export async function createLobby(hostName, sessionId) {
 
   try {
     await query(
-      `INSERT INTO lobbies (id, lobby_code, host_player_id, word, status, current_turn_index, attempts_left)
-       VALUES (?, ?, ?, ?, 'waiting', 0, 6)`,
+      `INSERT INTO lobbies (id, lobby_code, host_player_id, word, status, current_turn_index, attempts_left, max_attempts)
+       VALUES (?, ?, ?, ?, 'waiting', 0, 12, 12)`,
       [lobbyId, lobbyCode, playerId, word]
     );
 
@@ -144,7 +144,7 @@ export async function getLobby(lobbyId) {
     }
 
     const players = await query(
-      'SELECT id, player_name, turn_order, is_host, is_connected FROM players WHERE lobby_id = ? ORDER BY turn_order',
+      'SELECT id, player_name, turn_order, is_host, is_connected FROM players WHERE lobby_id = ? AND is_connected = TRUE ORDER BY turn_order',
       [lobbyId]
     );
 
@@ -170,14 +170,14 @@ export async function getLobby(lobbyId) {
 }
 
 // Starte Spiel
-export async function startGame(lobbyId) {
+export async function startGame(lobbyId, maxAttempts = 8) {
   try {
     await query(
-      `UPDATE lobbies SET status = 'playing', started_at = NOW() WHERE id = ?`,
-      [lobbyId]
+      `UPDATE lobbies SET status = 'playing', started_at = NOW(), attempts_left = ?, max_attempts = ? WHERE id = ?`,
+      [maxAttempts, maxAttempts, lobbyId]
     );
 
-    console.log(`🎮 Spiel in Lobby ${lobbyId} gestartet`);
+    console.log(`🎮 Spiel in Lobby ${lobbyId} gestartet mit ${maxAttempts} Versuchen`);
     return { success: true };
   } catch (error) {
     console.error('Fehler beim Starten des Spiels:', error);
@@ -189,7 +189,7 @@ export async function startGame(lobbyId) {
 export async function removePlayer(playerId) {
   try {
     await query(
-      'UPDATE players SET is_connected = FALSE WHERE id = ?',
+      'DELETE FROM players WHERE id = ?',
       [playerId]
     );
 

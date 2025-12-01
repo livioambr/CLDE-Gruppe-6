@@ -60,6 +60,11 @@
     max-width: 100%;
   }
 
+  .player-list-section {
+    grid-column: 1 / -1;
+    max-width: 100%;
+  }
+
   .chat-column {
     order: 3;
     max-height: 400px;
@@ -131,7 +136,7 @@
     max-height: 350px;
   }
 
-  .player-list {
+  .player-list-section {
     padding: 10px;
   }
 
@@ -141,6 +146,15 @@
 
   .chat-input-container {
     padding: 10px;
+  }
+
+  .difficulty-options {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .difficulty-selector {
+    padding: 15px;
   }
 }
 
@@ -283,6 +297,7 @@
 
 /* Accessibility: Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -294,6 +309,7 @@
 
 /* Print Styles */
 @media print {
+
   .chat-column,
   .game-controls,
   .menu-btn {

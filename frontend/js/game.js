@@ -47,6 +47,9 @@ const playersListContainer = document.getElementById('playersList');
 const chatMessages = document.getElementById('chatMessages');
 const chatForm = document.getElementById('chatForm');
 const chatInput = document.getElementById('chatInput');
+const myPlayerNameDisplay = document.getElementById('myPlayerNameDisplay');
+const difficultySelector = document.getElementById('difficultySelector');
+
 
 // ============================================
 // INITIALISIERUNG
@@ -68,8 +71,11 @@ async function init() {
     return;
   }
 
-  // Zeige Lobby-Code
+  // Zeige Lobby-Code und Spielername
   lobbyCodeDisplay.textContent = `CODE: ${gameState.lobbyCode}`;
+  if (myPlayerNameDisplay) {
+    myPlayerNameDisplay.textContent = gameState.playerName;
+  }
 
   // Initialisiere Socket.io
   console.log('🔌 Verbinde mit Server...');
@@ -98,9 +104,12 @@ async function init() {
       });
     }
 
-    // Zeige Start-Button nur für Host
+    // Zeige Start-Button und Difficulty Selector nur für Host
     if (gameState.isHost && gameState.status === 'waiting') {
       startGameBtn.style.display = 'block';
+      if (difficultySelector) {
+        difficultySelector.style.display = 'block';
+      }
     }
 
   } catch (error) {
@@ -153,6 +162,9 @@ function setupSocketListeners() {
     console.log('🎮 Spiel gestartet!');
     updateGameState(data);
     startGameBtn.style.display = 'none';
+    if (difficultySelector) {
+      difficultySelector.style.display = 'none';
+    }
     gameMessage.innerHTML = '';
   });
 
@@ -221,6 +233,8 @@ function updateGameState(data) {
   gameState.incorrectGuesses = data.incorrectGuesses || [];
   gameState.attemptsLeft = data.attemptsLeft;
   gameState.word = data.word;
+  gameState.maxAttempts = data.maxAttempts || 8; // Add maxAttempts from server
+
 
   updateUI();
 }
@@ -354,68 +368,125 @@ function drawHangman() {
   ctx.lineCap = 'round';
 
   const wrongCount = gameState.maxAttempts - gameState.attemptsLeft;
+  const maxAttempts = gameState.maxAttempts || 8;
 
-  if (wrongCount >= 1) {
-    // Galgen Basis
+  // Calculate how many of the 12 parts to draw
+  // Use Math.ceil to ensure we start drawing from the first error
+  const partsToDraw = Math.ceil((wrongCount / maxAttempts) * 12);
+
+  // Step 1: Galgen Basis
+  if (partsToDraw >= 1) {
     ctx.beginPath();
     ctx.moveTo(20, 280);
     ctx.lineTo(180, 280);
     ctx.stroke();
   }
 
-  if (wrongCount >= 2) {
-    // Vertikaler Balken
+  // Step 2: Vertikaler Pfosten (unten)
+  if (partsToDraw >= 2) {
     ctx.beginPath();
     ctx.moveTo(50, 280);
+    ctx.lineTo(50, 200);
+    ctx.stroke();
+  }
+
+  // Step 3: Vertikaler Pfosten (mitte)
+  if (partsToDraw >= 3) {
+    ctx.beginPath();
+    ctx.moveTo(50, 200);
+    ctx.lineTo(50, 120);
+    ctx.stroke();
+  }
+
+  // Step 4: Vertikaler Pfosten (oben)
+  if (partsToDraw >= 4) {
+    ctx.beginPath();
+    ctx.moveTo(50, 120);
     ctx.lineTo(50, 20);
     ctx.stroke();
   }
 
-  if (wrongCount >= 3) {
-    // Horizontaler Balken
+  // Step 5: Horizontaler Balken (links)
+  if (partsToDraw >= 5) {
     ctx.beginPath();
     ctx.moveTo(50, 20);
+    ctx.lineTo(100, 20);
+    ctx.stroke();
+  }
+
+  // Step 6: Horizontaler Balken (rechts)
+  if (partsToDraw >= 6) {
+    ctx.beginPath();
+    ctx.moveTo(100, 20);
     ctx.lineTo(150, 20);
     ctx.stroke();
   }
 
-  if (wrongCount >= 4) {
-    // Seil
+  // Step 7: Seil
+  if (partsToDraw >= 7) {
     ctx.beginPath();
     ctx.moveTo(150, 20);
     ctx.lineTo(150, 50);
     ctx.stroke();
   }
 
-  if (wrongCount >= 5) {
-    // Kopf
+  // Step 8: Kopf
+  if (partsToDraw >= 8) {
     ctx.beginPath();
     ctx.arc(150, 70, 20, 0, Math.PI * 2);
     ctx.stroke();
   }
 
-  if (wrongCount >= 6) {
-    // Körper
+  // Step 9: Körper
+  if (partsToDraw >= 9) {
     ctx.beginPath();
     ctx.moveTo(150, 90);
     ctx.lineTo(150, 150);
     ctx.stroke();
+  }
 
-    // Arme
+  // Step 10: Arme (beide)
+  if (partsToDraw >= 10) {
+    // Linker Arm
     ctx.beginPath();
     ctx.moveTo(150, 110);
     ctx.lineTo(120, 130);
+    ctx.stroke();
+
+    // Rechter Arm
+    ctx.beginPath();
     ctx.moveTo(150, 110);
     ctx.lineTo(180, 130);
     ctx.stroke();
+  }
 
-    // Beine
+  // Step 11: Beine (beide)
+  if (partsToDraw >= 11) {
+    // Linkes Bein
     ctx.beginPath();
     ctx.moveTo(150, 150);
     ctx.lineTo(120, 190);
+    ctx.stroke();
+
+    // Rechtes Bein
+    ctx.beginPath();
     ctx.moveTo(150, 150);
     ctx.lineTo(180, 190);
     ctx.stroke();
+  }
+
+  // Step 12: Gesicht (Augen)
+  if (partsToDraw >= 12) {
+    // Linkes Auge
+    ctx.beginPath();
+    ctx.arc(145, 67, 2, 0, Math.PI * 2);
+    ctx.fillStyle = '#333';
+    ctx.fill();
+
+    // Rechtes Auge
+    ctx.beginPath();
+    ctx.arc(155, 67, 2, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
 
@@ -427,10 +498,19 @@ async function handleStartGame() {
     return;
   }
 
+  // Get selected difficulty
+  let maxAttempts = 8; // default
+  if (difficultySelector) {
+    const selectedDifficulty = document.querySelector('input[name="difficulty"]:checked');
+    if (selectedDifficulty) {
+      maxAttempts = parseInt(selectedDifficulty.value);
+    }
+  }
+
   startGameBtn.disabled = true;
 
   try {
-    await startGameSocket(gameState.lobbyId);
+    await startGameSocket(gameState.lobbyId, maxAttempts);
     // Game State wird über 'game:started' Event aktualisiert
   } catch (error) {
     console.error('Fehler beim Starten:', error);

@@ -123,19 +123,19 @@ export function setupSocketHandlers(io) {
     // Spiel starten
     socket.on('game:start', async (data, callback) => {
       try {
-        const { lobbyId } = data;
-        if (closingLobbies.has(lobbyId)) return callback({ success: false, error: 'Lobby wird geschlossen' });
+        const { lobbyId, maxAttempts = 8 } = data;
 
-        await startGame(lobbyId);
+        await startGame(lobbyId, maxAttempts);
         const gameState = await getGameState(lobbyId);
 
         io.to(lobbyId).emit('game:started', gameState);
-        if (!closingLobbies.has(lobbyId)) await sendSystemMessage(lobbyId, 'Spiel gestartet!');
+        await sendSystemMessage(lobbyId, 'Spiel gestartet!');
 
-        if (callback) callback({ success: true, gameState });
+        callback({ success: true, gameState });
+        console.log(`🎮 Spiel in Lobby ${lobbyId} gestartet`);
       } catch (error) {
         console.error('Fehler bei game:start:', error);
-        if (callback) callback({ success: false, error: error.message });
+        callback({ success: false, error: error.message });
       }
     });
 

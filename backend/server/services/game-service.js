@@ -179,6 +179,13 @@ export async function getGameState(lobbyId) {
 // Reset Spiel für neue Runde
 export async function resetGame(lobbyId) {
   try {
+    // Hole aktuellen max_attempts Wert
+    const currentLobby = await queryOne(
+      'SELECT max_attempts FROM lobbies WHERE id = ?',
+      [lobbyId]
+    );
+    const maxAttempts = currentLobby?.max_attempts || 8;
+
     // Hole neues Wort
     const wordResult = await queryOne(
       'SELECT word FROM words ORDER BY RAND() LIMIT 1'
@@ -188,10 +195,10 @@ export async function resetGame(lobbyId) {
     // Reset Lobby
     await query(
       `UPDATE lobbies
-       SET word = ?, status = 'waiting', current_turn_index = 0, attempts_left = 6,
+       SET word = ?, status = 'waiting', current_turn_index = 0, attempts_left = ?,
            started_at = NULL, finished_at = NULL
        WHERE id = ?`,
-      [newWord, lobbyId]
+      [newWord, maxAttempts, lobbyId]
     );
 
     // Reset Game State
