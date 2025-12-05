@@ -39,7 +39,6 @@ temp/
 *.tmp
 
 # Database backups
-*.sql
 backups/
 
 # PM2
