@@ -235,4 +235,35 @@ export async function deleteLobby(lobbyId) {
   }
 }
 
+/* 🧹 Cleanup: Lösche alte/inaktive Lobbies */
+export async function cleanupStaleLobbies(hoursInactive = 24) {
+  try {
+    // Find lobbies that haven't been updated in X hours
+    const staleLobbies = await query(
+      `SELECT id, lobby_code, status, 
+              TIMESTAMPDIFF(HOUR, updated_at, NOW()) as hours_inactive
+       FROM lobbies 
+       WHERE updated_at < DATE_SUB(NOW(), INTERVAL ? HOUR)`,
+      [hoursInactive]
+    );
+
+    let deletedCount = 0;
+    for (const lobby of staleLobbies) {
+      try {
+        await deleteLobby(lobby.id);
+        deletedCount++;
+        console.log(`🗑️ Gelöscht: Lobby ${lobby.lobby_code} (inaktiv seit ${lobby.hours_inactive}h)`);
+      } catch (error) {
+        console.error(`Fehler beim Löschen von Lobby ${lobby.id}:`, error);
+      }
+    }
+
+    console.log(`🧹 Lobby-Cleanup abgeschlossen: ${deletedCount} von ${staleLobbies.length} Lobbies gelöscht`);
+    return { success: true, deleted: deletedCount, total: staleLobbies.length };
+  } catch (error) {
+    console.error('Fehler beim Lobby-Cleanup:', error);
+    throw error;
+  }
+}
+
 // (Removed socket event handlers — service layer must not reference socket/io)

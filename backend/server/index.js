@@ -12,6 +12,8 @@ dotenv.config();
 
 // DB Verbindung
 import { initializeDatabase } from './db/connection.js';
+import { cleanupOldMessages } from './services/chat-service.js';
+import { cleanupStaleLobbies } from './services/lobby-service.js';
 
 // Entfernte __dirname/Path-Logik - Frontend wird separat gehostet
 const app = express();
@@ -97,11 +99,59 @@ async function startServer() {
       if (process.env.NODE_ENV === 'production') {
         console.log('⚠️  Production Mode: Nutze die konfigurierte FRONTEND_ORIGIN für externe Verbindungen\n');
       }
+
+      // Start housekeeping tasks
+      startHousekeeping();
     });
   } catch (error) {
     console.error('❌ Fehler beim Starten des Servers:', error);
     process.exit(1);
   }
+}
+
+// Graceful Shutdown
+process.on('SIGTERM', () => {
+  console.log('\n⚠️  SIGTERM empfangen. Server wird heruntergefahren...');
+  server.close(() => {
+    console.log('✅ Server geschlossen');
+    process.exit(0);
+  });
+});
+
+// Housekeeping - periodic cleanup of old data
+function startHousekeeping() {
+  console.log('🧹 Housekeeping gestartet');
+  
+  // Cleanup old chat messages every 6 hours
+  setInterval(async () => {
+    try {
+      console.log('🧹 Starte Chat-Cleanup...');
+      await cleanupOldMessages(1); // Delete messages older than 1 day
+    } catch (error) {
+      console.error('❌ Fehler beim Chat-Cleanup:', error);
+    }
+  }, 6 * 60 * 60 * 1000); // 6 hours
+
+  // Cleanup stale lobbies every hour
+  setInterval(async () => {
+    try {
+      console.log('🧹 Starte Lobby-Cleanup...');
+      await cleanupStaleLobbies(24); // Delete lobbies inactive for 24+ hours
+    } catch (error) {
+      console.error('❌ Fehler beim Lobby-Cleanup:', error);
+    }
+  }, 60 * 60 * 1000); // 1 hour
+
+  // Run initial cleanup after 1 minute
+  setTimeout(async () => {
+    try {
+      console.log('🧹 Initiales Cleanup...');
+      await cleanupOldMessages(7);
+      await cleanupStaleLobbies(24);
+    } catch (error) {
+      console.error('❌ Fehler beim initialen Cleanup:', error);
+    }
+  }, 60 * 1000); // 1 minute
 }
 
 // Graceful Shutdown
