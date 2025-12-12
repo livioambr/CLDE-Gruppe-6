@@ -61,6 +61,66 @@ export function setupSocketHandlers(io) {
       }
     });
 
+    // Spieler reconnect mit Session
+    socket.on('player:reconnect', async (data, callback) => {
+      try {
+        const { sessionId } = data;
+
+        const player = await getPlayerBySession(sessionId);
+        if (!player) {
+          return callback({ success: false, error: 'Keine aktive Session gefunden' });
+        }
+
+        currentPlayer = { id: player.id, name: player.player_name, lobbyId: player.lobby_id };
+        currentLobby = player.lobby_id;
+
+        socket.join(player.lobby_id);
+        console.log(`ℹ️ Socket ${socket.id} reconnected to room ${player.lobby_id}`);
+
+        const lobby = await getLobby(player.lobby_id);
+        const chatHistory = await getChatHistory(player.lobby_id);
+        const gameState = await getGameState(player.lobby_id);
+
+        if (callback) callback({ 
+          success: true, 
+          player,
+          lobby, 
+          chatHistory,
+          gameState
+        });
+        console.log(`🔄 ${player.player_name} hat sich wiederverbunden mit Lobby ${player.lobby_code}`);
+      } catch (error) {
+        console.error('Fehler bei player:reconnect:', error);
+        if (callback) callback({ success: false, error: error.message });
+      }
+    });
+
+    // Lobby/Game State abrufen
+    socket.on('lobby:get-state', async (data, callback) => {
+      try {
+        const { lobbyId } = data;
+
+        const lobby = await getLobby(lobbyId);
+        if (!lobby) {
+          return callback({ success: false, error: 'Lobby nicht gefunden' });
+        }
+
+        const gameState = await getGameState(lobbyId);
+        const chatHistory = await getChatHistory(lobbyId);
+
+        if (callback) callback({ 
+          success: true, 
+          lobby, 
+          gameState,
+          chatHistory
+        });
+        console.log(`📊 State abgerufen für Lobby ${lobbyId}`);
+      } catch (error) {
+        console.error('Fehler bei lobby:get-state:', error);
+        if (callback) callback({ success: false, error: error.message });
+      }
+    });
+
     // Host verlässt Lobby → Lobby wird gelöscht
     socket.on('host:left', async (data, callback) => {
       try {
@@ -218,6 +278,25 @@ export function setupSocketHandlers(io) {
         } catch (error) {
           console.error('Fehler bei disconnect:', error);
         }
+      }
+    });
+
+    // Spiel zurücksetzen
+    socket.on('game:reset', async (data, callback) => {
+      try {
+        const { lobbyId } = data;
+
+        await resetGame(lobbyId);
+        const gameState = await getGameState(lobbyId);
+
+        io.to(lobbyId).emit('game:reset', gameState);
+        await sendSystemMessage(lobbyId, '🔄 Neues Spiel gestartet!');
+
+        if (callback) callback({ success: true, gameState });
+        console.log(`🔄 Spiel in Lobby ${lobbyId} zurückgesetzt`);
+      } catch (error) {
+        console.error('Fehler bei game:reset:', error);
+        if (callback) callback({ success: false, error: error.message });
       }
     });
 
