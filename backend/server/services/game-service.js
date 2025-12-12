@@ -153,10 +153,14 @@ export async function getGameState(lobbyId) {
     const guessedLetters = gameState.guessed_letters ? gameState.guessed_letters.split(',') : [];
     const incorrectGuesses = gameState.incorrect_guesses ? gameState.incorrect_guesses.split(',') : [];
 
+    // Determine if word should be revealed (only when game is finished and lost)
+    const hasLost = lobby.status === 'finished' && lobby.attempts_left <= 0;
+    const hasWon = lobby.status === 'finished' && !gameState.word_progress.includes('_');
+
     return {
       lobbyCode: lobby.lobby_code,
       status: lobby.status,
-      word: lobby.word,
+      word: (hasLost || hasWon) ? lobby.word : null, // Only reveal word when game is finished
       wordProgress: gameState.word_progress,
       guessedLetters,
       incorrectGuesses,

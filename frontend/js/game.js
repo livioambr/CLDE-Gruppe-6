@@ -195,6 +195,7 @@ function setupSocketListeners() {
   on('game:reset', (data) => {
     console.log('🔄 Spiel zurückgesetzt:');
     updateGameState(data);
+    createLetterButtons();
     newGameBtn.style.display = 'none';
     if (gameState.isHost) {
       startGameBtn.style.display = 'block';
