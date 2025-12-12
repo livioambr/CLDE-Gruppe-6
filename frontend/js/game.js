@@ -81,9 +81,6 @@ async function init() {
   console.log('🔌 Verbinde mit Server...');
   initSocket();
 
-  // Setup Socket-Event-Listener
-  setupSocketListeners();
-
   // Tritt Lobby bei
   try {
     const response = await joinLobbySocket(
@@ -93,6 +90,9 @@ async function init() {
     );
 
     console.log('✅ Lobby beigetreten:', response);
+
+    // Setup Socket-Event-Listener AFTER joining lobby
+    setupSocketListeners();
 
     // Aktualisiere Game State
     updateGameState(response.lobby);
@@ -207,19 +207,19 @@ function setupSocketListeners() {
   on('chat:new-message', (data) => {
     addChatMessage(data.playerName, data.message, data.messageType);
   });
+
+  // Lobby geschlossen (z. B. Host hat verlassen)
+  on('lobby:closed', () => {
+    // Fix: Session sofort löschen, damit kein Rejoin-Versuch möglich ist
+    sessionStorage.clear();
+
+    addSystemMessage('Der Host hat die Lobby verlassen. Du wirst zurück ins Menü geleitet.');
+
+    setTimeout(() => {
+      window.location.href = '../index.html';
+    }, 6000); // 6 Sekunden warten, um Nachricht zu sehen
+  });
 }
-
-// Lobby geschlossen (z. B. Host hat verlassen)
-on('lobby:closed', () => {
-  // Fix: Session sofort löschen, damit kein Rejoin-Versuch möglich ist
-  sessionStorage.clear();
-
-  addSystemMessage('Der Host hat die Lobby verlassen. Du wirst zurück ins Menü geleitet.');
-
-  setTimeout(() => {
-    window.location.href = '../index.html';
-  }, 3000); // 3 Sekunden warten, um Nachricht zu sehen
-});
 
 // ============================================
 // GAME STATE MANAGEMENT

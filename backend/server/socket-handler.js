@@ -134,7 +134,9 @@ export function setupSocketHandlers(io) {
         closingLobbies.add(lobbyId);
 
         console.log(`ℹ️ Emitting 'lobby:closed' for lobby ${lobbyId} (host-left)`);
-        io.to(lobbyId).emit('lobby:closed', { reason: 'host-left' });
+        // Emit to all clients in the room (host and other players)
+        io.to(lobbyId).emit('lobby:closed', { reason: 'host-left', lobbyCode: lobby.lobby_code });
+        console.log(`✅ 'lobby:closed' event emitted to room ${lobbyId}`);
 
         try {
           await sendSystemMessage(lobbyId, `🗑️ Lobby ${lobby.lobby_code || lobbyId} wurde gelöscht (Host hat verlassen)`);
