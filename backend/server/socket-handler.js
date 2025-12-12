@@ -37,12 +37,13 @@ export function setupSocketHandlers(io) {
         socket.join(lobbyId);
         console.log(`ℹ️ Socket ${socket.id} joined room ${lobbyId}`);
 
-        const chatHistory = await getChatHistory(lobbyId);
-
         // Best-effort: persist system join message unless lobby is closing
         if (!closingLobbies.has(lobbyId)) {
           try { await sendSystemMessage(lobbyId, `${playerName} ist beigetreten`); } catch (e) { console.warn(e); }
         }
+
+        // Fetch chat history AFTER sending system message so it includes the join message
+        const chatHistory = await getChatHistory(lobbyId);
 
         // Get updated players list and emit to room
         const updatedLobby = await getLobby(lobbyId);
