@@ -235,8 +235,8 @@ body {
 
 .game-status {
   text-align: center;
-  margin-bottom: 30px;
-  padding: 15px;
+  margin-bottom: 20px;
+  padding: 12px;
   background: #f8f9fa;
   border-radius: 12px;
 }
@@ -273,12 +273,12 @@ body {
 /* Wort-Anzeige */
 .word-display {
   text-align: center;
-  font-size: 3rem;
+  font-size: 2.5rem;
   font-weight: bold;
-  letter-spacing: 20px;
-  margin: 40px 0;
+  letter-spacing: 15px;
+  margin: 20px 0;
   color: #333;
-  min-height: 80px;
+  min-height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -294,8 +294,8 @@ body {
 .letters-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 10px;
-  margin-bottom: 20px;
+  gap: 8px;
+  margin-bottom: 15px;
 }
 
 .letter-btn {
@@ -341,8 +341,8 @@ body {
 
 /* Difficulty Selector */
 .difficulty-selector {
-  margin: 20px 0;
-  padding: 20px;
+  margin: 15px 0;
+  padding: 15px;
   background: #f8f9fa;
   border-radius: 12px;
   border: 2px solid #e0e0e0;
@@ -351,8 +351,8 @@ body {
 .difficulty-selector h3 {
   text-align: center;
   color: #333;
-  margin-bottom: 15px;
-  font-size: 1.1rem;
+  margin-bottom: 10px;
+  font-size: 1rem;
 }
 
 .difficulty-options {
@@ -376,7 +376,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 15px 10px;
+  padding: 10px 8px;
   background: white;
   border: 2px solid #ddd;
   border-radius: 8px;
