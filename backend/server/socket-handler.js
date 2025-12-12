@@ -221,6 +221,34 @@ export function setupSocketHandlers(io) {
       }
     });
 
+    // Chat-Nachricht senden
+    socket.on('chat:message', async (data, callback) => {
+      try {
+        const { lobbyId, playerId, playerName, message } = data;
+
+        if (!message || !message.trim()) {
+          return callback({ success: false, error: 'Nachricht darf nicht leer sein' });
+        }
+
+        // Speichere Nachricht in DB
+        await sendMessage(lobbyId, playerId, playerName, message.trim());
+
+        // Sende Nachricht an alle Clients in der Lobby
+        io.to(lobbyId).emit('chat:new-message', {
+          playerId,
+          playerName,
+          message: message.trim(),
+          messageType: 'player'
+        });
+
+        if (callback) callback({ success: true });
+        console.log(`💬 Chat-Nachricht von ${playerName} in Lobby ${lobbyId}`);
+      } catch (error) {
+        console.error('Fehler bei chat:message:', error);
+        if (callback) callback({ success: false, error: error.message });
+      }
+    });
+
     // ping
     socket.on('ping', (callback) => {
       callback({ pong: true, timestamp: Date.now() });
