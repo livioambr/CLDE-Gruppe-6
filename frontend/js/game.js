@@ -199,6 +199,9 @@ function setupSocketListeners() {
     newGameBtn.style.display = 'none';
     if (gameState.isHost) {
       startGameBtn.style.display = 'block';
+      if (difficultySelector) {
+        difficultySelector.style.display = 'block';
+      }
     }
     gameMessage.innerHTML = '';
     clearCanvas();
