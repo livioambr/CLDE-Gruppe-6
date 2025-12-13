@@ -23,7 +23,7 @@ services:
     - PORT=3000
     - HOST=0.0.0.0
     - NODE_ENV=production
-    - FRONTEND_ORIGIN=https://hangman.hipstertech.ch
+    - FRONTEND_ORIGIN=https://hangman.clde.hipstertech.cloud
     - DB_HOST=hangman-mysql
     - DB_PORT=3306
     - DB_USER=hangman
@@ -34,21 +34,21 @@ services:
     depends_on:
       - hangman-mysql
 
-  hangman-mysql:
-    image: mysql
-    restart: unless-stopped
-    environment:
-      - MYSQL_RANDOM_ROOT_PASSWORD=yes
-      - MYSQL_DATABASE=hangman_game
-      - MYSQL_USER=hangman
-      - MYSQL_PASSWORD=${DB_PW}
-    networks:
-      - hangman
-    volumes:
-      - db-data:/var/lib/mysql
+  #hangman-mysql:
+  #  image: mysql
+  #  restart: unless-stopped
+  #  environment:
+  #    - MYSQL_RANDOM_ROOT_PASSWORD=yes
+  #    - MYSQL_DATABASE=hangman_game
+  #    - MYSQL_USER=hangman
+  #    - MYSQL_PASSWORD=${DB_PW}
+  #  networks:
+  #    - hangman
+  #  volumes:
+  #    - db-data:/var/lib/mysql
 
 networks:
   hangman:
 
-volumes:
-  db-data:
+#volumes:
+#  db-data:
