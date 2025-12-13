@@ -153,7 +153,19 @@ function setupSocketListeners() {
     // Fix: Entferne Spieler aus der Liste und aktualisiere UI
     if (data.playerId) {
       gameState.players = gameState.players.filter(p => p.id !== data.playerId);
+      
+      // Update current turn index if provided
+      if (typeof data.currentTurnIndex !== 'undefined') {
+        gameState.currentTurnIndex = data.currentTurnIndex;
+      }
+      
+      // Update players list if provided
+      if (data.players) {
+        gameState.players = data.players;
+      }
+      
       updatePlayersList();
+      updateTurnDisplay();
     }
   });
 

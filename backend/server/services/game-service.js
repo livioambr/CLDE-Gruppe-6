@@ -67,19 +67,29 @@ export async function guessLetter(lobbyId, playerId, letter) {
     const hasLost = newAttemptsLeft <= 0;
     const newStatus = hasWon || hasLost ? 'finished' : 'playing';
 
-    // Nächster Spieler
-    const playerCount = await query(
-      'SELECT COUNT(*) as count FROM players WHERE lobby_id = ? AND is_connected = TRUE',
-     [lobbyId]
+    // Nächster Spieler - get all players to find the next valid one
+    const allPlayers = await query(
+      'SELECT * FROM players WHERE lobby_id = ? AND is_connected = TRUE ORDER BY turn_order',
+      [lobbyId]
     );
-    const totalPlayers = playerCount[0].count;
+    const totalPlayers = allPlayers.length;
 
     // Wenn kein Spieler mehr vorhanden ist (Lobby evtl. geschlossen), return
     if (totalPlayers === 0) {
       return { success: false, error: 'Keine Spieler in der Lobby' };
     }
 
-    const nextTurnIndex = (lobby.current_turn_index + 1) % totalPlayers;
+    // Find next player by incrementing turn_order
+    let nextTurnIndex = (lobby.current_turn_index + 1) % totalPlayers;
+    
+    // Ensure the next turn index is valid (a player with that turn_order exists)
+    // This handles edge cases where turn orders might be inconsistent
+    const nextPlayer = allPlayers.find(p => p.turn_order === nextTurnIndex);
+    if (!nextPlayer && totalPlayers > 0) {
+      // Fallback: use the first player if the calculated index doesn't exist
+      nextTurnIndex = allPlayers[0].turn_order;
+      console.log(`⚠️ Turn index ${nextTurnIndex} nicht gefunden, verwende ersten Spieler mit turn_order ${allPlayers[0].turn_order}`);
+    }
 
 
     // Update Lobby

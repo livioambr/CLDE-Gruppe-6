@@ -188,10 +188,70 @@ export async function startGame(lobbyId, maxAttempts = 8) {
 // Entferne Spieler aus Lobby
 export async function removePlayer(playerId) {
   try {
+    // Get player info before deletion
+    const player = await queryOne(
+      'SELECT * FROM players WHERE id = ?',
+      [playerId]
+    );
+
+    if (!player) {
+      console.log(`ℹ️ Spieler ${playerId} bereits entfernt`);
+      return { success: true };
+    }
+
+    const lobbyId = player.lobby_id;
+    const removedTurnOrder = player.turn_order;
+
+    // Delete the player
     await query(
       'DELETE FROM players WHERE id = ?',
       [playerId]
     );
+
+    // Get remaining players in this lobby
+    const remainingPlayers = await query(
+      'SELECT * FROM players WHERE lobby_id = ? ORDER BY turn_order',
+      [lobbyId]
+    );
+
+    // If there are remaining players, rebalance turn orders
+    if (remainingPlayers.length > 0) {
+      // Reassign turn orders sequentially (0, 1, 2, ...)
+      for (let i = 0; i < remainingPlayers.length; i++) {
+        await query(
+          'UPDATE players SET turn_order = ? WHERE id = ?',
+          [i, remainingPlayers[i].id]
+        );
+      }
+
+      // Get current lobby state
+      const lobby = await queryOne(
+        'SELECT * FROM lobbies WHERE id = ?',
+        [lobbyId]
+      );
+
+      if (lobby) {
+        let newTurnIndex = lobby.current_turn_index;
+
+        // If the removed player was before or at the current turn, adjust the index
+        if (removedTurnOrder <= lobby.current_turn_index) {
+          newTurnIndex = Math.max(0, lobby.current_turn_index - 1);
+        }
+
+        // Make sure the turn index doesn't exceed the number of remaining players
+        if (newTurnIndex >= remainingPlayers.length) {
+          newTurnIndex = 0;
+        }
+
+        // Update the lobby's current turn index
+        await query(
+          'UPDATE lobbies SET current_turn_index = ? WHERE id = ?',
+          [newTurnIndex, lobbyId]
+        );
+
+        console.log(`🔄 Turn index angepasst: ${lobby.current_turn_index} -> ${newTurnIndex} (${remainingPlayers.length} Spieler übrig)`);
+      }
+    }
 
     console.log(`👋 Spieler ${playerId} hat die Lobby verlassen`);
     return { success: true };
@@ -241,9 +301,9 @@ export async function cleanupStaleLobbies(hoursInactive = 24) {
     // Find lobbies that haven't been updated in X hours
     const staleLobbies = await query(
       `SELECT id, lobby_code, status, 
-              TIMESTAMPDIFF(HOUR, updated_at, NOW()) as hours_inactive
+              TIMESTAMPDIFF(HOUR, created_at, NOW()) as hours_inactive
        FROM lobbies 
-       WHERE updated_at < DATE_SUB(NOW(), INTERVAL ? HOUR)`,
+       WHERE created_at < DATE_SUB(NOW(), INTERVAL ? HOUR)`,
       [hoursInactive]
     );
 

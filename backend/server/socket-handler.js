@@ -171,7 +171,23 @@ export function setupSocketHandlers(io) {
         }
 
         await removePlayer(playerId);
-        socket.to(lobbyId).emit('player:left', { playerId, playerName });
+        
+        // Get updated game state after player removal
+        const updatedGameState = await getGameState(lobbyId);
+        const updatedLobby = await getLobby(lobbyId);
+        
+        // Emit player left with updated game state
+        socket.to(lobbyId).emit('player:left', {
+          playerId,
+          playerName,
+          players: updatedLobby?.players || [],
+          currentTurnIndex: updatedLobby?.currentTurnIndex
+        });
+        
+        // If game is active, also emit game state update
+        if (updatedGameState && updatedGameState.status === 'playing') {
+          socket.to(lobbyId).emit('game:updated', updatedGameState);
+        }
 
         try { await sendSystemMessage(lobbyId, `${playerName || 'Ein Spieler'} hat die Lobby verlassen`); } catch (e) { console.warn(e); }
 
@@ -269,10 +285,23 @@ export function setupSocketHandlers(io) {
             }
 
             await removePlayer(currentPlayer.id);
-            socket.to(currentLobby).emit('player:left', {
+            
+            // Get updated game state after player removal
+            const updatedGameState = await getGameState(currentLobby);
+            const updatedLobby = await getLobby(currentLobby);
+            
+            // Emit player left with updated game state
+            io.to(currentLobby).emit('player:left', {
               playerId: currentPlayer.id,
-              playerName: currentPlayer.name
+              playerName: currentPlayer.name,
+              players: updatedLobby?.players || [],
+              currentTurnIndex: updatedLobby?.currentTurnIndex
             });
+            
+            // If game is active, also emit game state update
+            if (updatedGameState && updatedGameState.status === 'playing') {
+              io.to(currentLobby).emit('game:updated', updatedGameState);
+            }
 
             try { await sendSystemMessage(currentLobby, `${currentPlayer.name} hat die Lobby verlassen`); } catch (err) { console.warn(err); }
 
