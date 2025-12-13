@@ -31,8 +31,8 @@ services:
     - DB_NAME=hangman_game
     networks:
     - hangman
-    depends_on:
-      - hangman-mysql
+   #depends_on:
+    #  - hangman-mysql
 
   #hangman-mysql:
   #  image: mysql
