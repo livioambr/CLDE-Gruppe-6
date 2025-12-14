@@ -8,6 +8,7 @@ import {
   deleteLobby
 } from './services/lobby-service.js';
 import { guessLetter, getGameState, resetGame } from './services/game-service.js';
+import { setPlayerConnection } from './services/lobby-service.js';
 import { sendMessage, getChatHistory, sendSystemMessage } from './services/chat-service.js';
 
 // In-memory marker for lobbies being closed (prevents race condition with DB writes)
@@ -71,6 +72,9 @@ export function setupSocketHandlers(io) {
         if (!player) {
           return callback({ success: false, error: 'Keine aktive Session gefunden' });
         }
+
+        // Mark player as connected again
+        await setPlayerConnection(player.id, true);
 
         currentPlayer = { id: player.id, name: player.player_name, lobbyId: player.lobby_id };
         currentLobby = player.lobby_id;
@@ -265,26 +269,19 @@ export function setupSocketHandlers(io) {
           );
 
           if (isHost) {
-            closingLobbies.add(currentLobby);
-            console.log(`ℹ️ Emitting 'lobby:closed' for lobby ${currentLobby} (host-disconnect, host=${currentPlayer.id})`);
-            io.to(currentLobby).emit('lobby:closed', { reason: 'host-disconnect' });
-
-            try {
-              await sendSystemMessage(currentLobby, `🗑️ Lobby ${lobby.lobby_code || currentLobby} wurde gelöscht (Host hat die Verbindung verloren)`);
-            } catch (err) {
-              console.warn('Warnung: System-Nachricht konnte nicht gespeichert werden:', err);
-            }
-
-            await deleteLobby(currentLobby);
-            closingLobbies.delete(currentLobby);
-            console.log(`🗑️ Lobby ${currentLobby} gelöscht, da Host die Verbindung verloren hat`);
+            // Do NOT delete lobby immediately on host disconnect; mark as disconnected
+            await setPlayerConnection(currentPlayer.id, false);
+            io.to(currentLobby).emit('host:disconnected', { hostId: currentPlayer.id });
+            try { await sendSystemMessage(currentLobby, `⚠️ Host hat die Verbindung verloren — warte auf Wiederverbindung`); } catch (err) { console.warn(err); }
+            console.log(`ℹ️ Host ${currentPlayer.id} getrennt — Lobby bleibt bestehen`);
           } else {
             if (closingLobbies.has(currentLobby)) {
               console.log(`ℹ️ Skipping disconnect DB updates for player ${currentPlayer.id} because lobby is closing`);
               return;
             }
 
-            await removePlayer(currentPlayer.id);
+            // Mark player as temporarily disconnected instead of deleting
+            await setPlayerConnection(currentPlayer.id, false);
             
             // Get updated game state after player removal
             const updatedGameState = await getGameState(currentLobby);
@@ -303,7 +300,7 @@ export function setupSocketHandlers(io) {
               io.to(currentLobby).emit('game:updated', updatedGameState);
             }
 
-            try { await sendSystemMessage(currentLobby, `${currentPlayer.name} hat die Lobby verlassen`); } catch (err) { console.warn(err); }
+            try { await sendSystemMessage(currentLobby, `${currentPlayer.name} hat die Verbindung verloren`); } catch (err) { console.warn(err); }
 
             console.log(`👋 ${currentPlayer.name} hat Lobby verlassen`);
           }
