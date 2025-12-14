@@ -21,6 +21,21 @@ export function initSocket() {
   socket.on('connect', () => {
     console.log('✅ Socket verbunden:', socket.id);
     isConnected = true;
+    // Auto-reconnect using sessionId if available
+    try {
+      const sessionId = (typeof window !== 'undefined') ? sessionStorage.getItem('sessionId') : null;
+      if (sessionId) {
+        socket.emit('player:reconnect', { sessionId }, (response) => {
+          if (response && response.success) {
+            console.log('🔄 Session-Reconnect erfolgreich');
+          } else {
+            console.log('⚠️ Session-Reconnect fehlgeschlagen:', response && response.error);
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Session-Reconnect nicht möglich:', e);
+    }
   });
 
   socket.on('disconnect', (reason) => {
