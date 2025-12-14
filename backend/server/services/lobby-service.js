@@ -278,6 +278,19 @@ export async function getPlayerBySession(sessionId) {
   }
 }
 
+// Verbindung-Status für Spieler per Session-ID setzen
+export async function setPlayerConnectionBySession(sessionId, connected) {
+  try {
+    await query(
+      'UPDATE players SET is_connected = ? WHERE session_id = ?',
+      [connected ? 1 : 0, sessionId]
+    );
+    return { success: true };
+  } catch (error) {
+    console.error('Fehler beim Aktualisieren des Spieler-Status (Session):', error);
+    throw error;
+  }
+}
 // Verbindung-Status für Spieler setzen (TRUE/FALSE)
 export async function setPlayerConnection(playerId, connected) {
   try {
@@ -339,5 +352,3 @@ export async function cleanupStaleLobbies(hoursInactive = 24) {
     throw error;
   }
 }
-
-// (Removed socket event handlers — service layer must not reference socket/io)
