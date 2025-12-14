@@ -24,7 +24,7 @@ services:
     - HOST=0.0.0.0
     - NODE_ENV=production
     - FRONTEND_ORIGIN=https://hangman.clde.hipstertech.cloud
-    - DB_HOST=hangman-mysql
+    - DB_HOST=hangman.cvque68og0u1.us-east-1.rds.amazonaws.com
     - DB_PORT=3306
     - DB_USER=hangman
     - DB_PASSWORD=${DB_PW}
