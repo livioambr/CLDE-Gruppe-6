@@ -268,12 +268,26 @@ export async function getPlayerBySession(sessionId) {
       `SELECT p.*, l.lobby_code
        FROM players p
        JOIN lobbies l ON p.lobby_id = l.id
-       WHERE p.session_id = ? AND p.is_connected = TRUE`,
+       WHERE p.session_id = ?`,
       [sessionId]
     );
     return player;
   } catch (error) {
     console.error('Fehler beim Abrufen des Spielers:', error);
+    throw error;
+  }
+}
+
+// Verbindung-Status für Spieler setzen (TRUE/FALSE)
+export async function setPlayerConnection(playerId, connected) {
+  try {
+    await query(
+      'UPDATE players SET is_connected = ? WHERE id = ?',
+      [connected ? 1 : 0, playerId]
+    );
+    return { success: true };
+  } catch (error) {
+    console.error('Fehler beim Aktualisieren des Spieler-Status:', error);
     throw error;
   }
 }
